@@ -1,0 +1,17 @@
+node_modules/
+build/
+.env
+test/credential_v2_private.json
+tests/credential_v2_private.json
+
+# ZK generated artifacts and local backups
+*.ptau
+*.zkey
+*.wtns
+*.backup
+*.backup.*
+*.bak
+input_v3.json
+
+# Private ZK witness inputs
+tests/*.json

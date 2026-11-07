@@ -41,7 +41,7 @@ const input = {
     credentialSalt: credentialSalt.toString(),
     role: 2,
     clearance: 2,
-    deviceComplaint: 1,
+    deviceCompliant: 1,
     employeeActive: 1,
     Ax: F.toObject(publicKey[0]).toString(),
     Ay: F.toObject(publicKey[1]).toString(),

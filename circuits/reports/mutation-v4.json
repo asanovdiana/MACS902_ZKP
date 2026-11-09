@@ -1,0 +1,2016 @@
+{
+  "title": "9 files",
+  "command": "node circuits/scripts/mutate.js --target circuits/integrated_access_v4.circom circuits/components/integrated_access_v4_gate.circom circuits/components/attribute_hash.circom circuits/components/issuer_key.circom circuits/components/merkle_membership_n.circom circuits/components/access_policy_v4.circom circuits/components/expiry.circom circuits/components/challenge_binding.circom circuits/components/eddsa_verifier.circom --test circuits/test/attribute_hash.test.js circuits/test/issuer_key.test.js circuits/test/merkle_depth.test.js circuits/test/policy_v4.test.js circuits/test/expiry.test.js circuits/test/challenge_binding.test.js circuits/test/v4.test.js --grep 'negatives|closed|rejected' --forbid-killers 'layout|constraint count|identical R1CS|control:|hook|positives|reproduces' --annotations circuits/scripts/mutate/annotations-v4.json --seed-builds --jobs 4 --report circuits/reports/mutation-v4.md",
+  "generatedAt": "2026-11-08T07:59:11.842Z",
+  "circom": "circom compiler 2.2.3",
+  "targets": [
+    "circuits/components/access_policy_v4.circom",
+    "circuits/components/attribute_hash.circom",
+    "circuits/components/challenge_binding.circom",
+    "circuits/components/eddsa_verifier.circom",
+    "circuits/components/expiry.circom",
+    "circuits/components/integrated_access_v4_gate.circom",
+    "circuits/components/issuer_key.circom",
+    "circuits/components/merkle_membership_n.circom",
+    "circuits/integrated_access_v4.circom"
+  ],
+  "specs": [
+    "circuits/test/attribute_hash.test.js",
+    "circuits/test/issuer_key.test.js",
+    "circuits/test/merkle_depth.test.js",
+    "circuits/test/policy_v4.test.js",
+    "circuits/test/expiry.test.js",
+    "circuits/test/challenge_binding.test.js",
+    "circuits/test/v4.test.js"
+  ],
+  "grep": "negatives|closed|rejected",
+  "forbidKillers": "layout|constraint count|identical R1CS|control:|hook|positives|reproduces",
+  "annotations": "circuits/scripts/mutate/annotations-v4.json",
+  "seedBuilds": true,
+  "baseline": {
+    "passed": true,
+    "passes": 350,
+    "ms": 50054
+  },
+  "summary": {
+    "total": 102,
+    "killed": 102,
+    "survived": 0,
+    "equivalent": 0,
+    "compile_error": 0,
+    "timeout": 0,
+    "error": 0,
+    "score": "102/102"
+  },
+  "mutants": [
+    {
+      "id": "S1",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 38,
+      "endLine": 38,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "roleBits.in <== role;",
+      "mutant": "roleBits.in <-- role;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) roleBits.in <== role: the attribute differs from the value whose bits select the mask bit",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) roleBits.in <== role: the attribute differs from the value whose bits select the mask bit",
+      "note": "Redundant in v4 for the RANGE (AttributeHash also has Num2Bits(2) on role), but here the bits are also the mux selectors, so the link is load-bearing. Killed standalone by policy_v4.test.js.",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) roleBits.in <== role: the attribute differs from the value whose bits select the mask bit"
+      ],
+      "ms": 10459
+    },
+    {
+      "id": "S2",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 41,
+      "endLine": 41,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "roleMaskBits.in <== roleMask;",
+      "mutant": "roleMaskBits.in <-- roleMask;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) roleMaskBits.in <== roleMask: the public mask differs from the bits the mux reads",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) roleMaskBits.in <== roleMask: the public mask differs from the bits the mux reads",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) roleMaskBits.in <== roleMask: the public mask differs from the bits the mux reads"
+      ],
+      "ms": 10677
+    },
+    {
+      "id": "S3",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 45,
+      "endLine": 45,
+      "template": "AccessPolicyV4",
+      "context": "for",
+      "original": "roleSel.c[k] <== roleMaskBits.out[k];",
+      "mutant": "roleSel.c[k] <-- roleMaskBits.out[k];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.c[0] <== roleMaskBits.out[0]: unset mask bit 0 fed to the mux as 1",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.c[0] <== roleMaskBits.out[0]: unset mask bit 0 fed to the mux as 1",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.c[0] <== roleMaskBits.out[0]: unset mask bit 0 fed to the mux as 1"
+      ],
+      "ms": 10726
+    },
+    {
+      "id": "S4",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 47,
+      "endLine": 47,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "roleSel.s[0] <== roleBits.out[0];",
+      "mutant": "roleSel.s[0] <-- roleBits.out[0];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[0] <== roleBits.out[0]: the mux selects a set bit other than bit role",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[0] <== roleBits.out[0]: the mux selects a set bit other than bit role",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[0] <== roleBits.out[0]: the mux selects a set bit other than bit role"
+      ],
+      "ms": 10765
+    },
+    {
+      "id": "S5",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 48,
+      "endLine": 48,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "roleSel.s[1] <== roleBits.out[1];",
+      "mutant": "roleSel.s[1] <-- roleBits.out[1];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[1] <== roleBits.out[1]: the mux selects a set bit other than bit role",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[1] <== roleBits.out[1]: the mux selects a set bit other than bit role",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) roleSel.s[1] <== roleBits.out[1]: the mux selects a set bit other than bit role"
+      ],
+      "ms": 10681
+    },
+    {
+      "id": "S6",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 49,
+      "endLine": 49,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "roleSel.out === 1;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) role bit unset in roleMask is rejected (engineer vs 0b1110)",
+      "firstFailure": "policy v4 negatives, input level (--O0) role bit unset in roleMask is rejected (engineer vs 0b1110)",
+      "failures": [
+        "policy v4 negatives, input level (--O0) role bit unset in roleMask is rejected (engineer vs 0b1110)"
+      ],
+      "ms": 10507
+    },
+    {
+      "id": "S7",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 53,
+      "endLine": 53,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "deptBits.in <== dept;",
+      "mutant": "deptBits.in <-- dept;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) deptBits.in <== dept: the attribute differs from the value whose bits select the mask bit",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) deptBits.in <== dept: the attribute differs from the value whose bits select the mask bit",
+      "note": "Redundant in v4 for the RANGE (AttributeHash also has Num2Bits(2) on dept), but the bits are the mux selectors. Killed standalone by policy_v4.test.js.",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) deptBits.in <== dept: the attribute differs from the value whose bits select the mask bit"
+      ],
+      "ms": 11162
+    },
+    {
+      "id": "S8",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 55,
+      "endLine": 55,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "deptMaskBits.in <== deptMask;",
+      "mutant": "deptMaskBits.in <-- deptMask;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) deptMaskBits.in <== deptMask: the public mask differs from the bits the mux reads",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) deptMaskBits.in <== deptMask: the public mask differs from the bits the mux reads",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) deptMaskBits.in <== deptMask: the public mask differs from the bits the mux reads"
+      ],
+      "ms": 10569
+    },
+    {
+      "id": "S9",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 58,
+      "endLine": 58,
+      "template": "AccessPolicyV4",
+      "context": "for",
+      "original": "deptSel.c[k] <== deptMaskBits.out[k];",
+      "mutant": "deptSel.c[k] <-- deptMaskBits.out[k];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.c[0] <== deptMaskBits.out[0]: unset mask bit 0 fed to the mux as 1",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.c[0] <== deptMaskBits.out[0]: unset mask bit 0 fed to the mux as 1",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.c[0] <== deptMaskBits.out[0]: unset mask bit 0 fed to the mux as 1"
+      ],
+      "ms": 10163
+    },
+    {
+      "id": "S10",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 60,
+      "endLine": 60,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "deptSel.s[0] <== deptBits.out[0];",
+      "mutant": "deptSel.s[0] <-- deptBits.out[0];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[0] <== deptBits.out[0]: the mux selects a set bit other than bit dept",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[0] <== deptBits.out[0]: the mux selects a set bit other than bit dept",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[0] <== deptBits.out[0]: the mux selects a set bit other than bit dept"
+      ],
+      "ms": 10662
+    },
+    {
+      "id": "S11",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 61,
+      "endLine": 61,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "deptSel.s[1] <== deptBits.out[1];",
+      "mutant": "deptSel.s[1] <-- deptBits.out[1];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[1] <== deptBits.out[1]: the mux selects a set bit other than bit dept",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[1] <== deptBits.out[1]: the mux selects a set bit other than bit dept",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) deptSel.s[1] <== deptBits.out[1]: the mux selects a set bit other than bit dept"
+      ],
+      "ms": 10530
+    },
+    {
+      "id": "S12",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 62,
+      "endLine": 62,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "deptSel.out === 1;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) dept bit unset in deptMask is rejected (operations vs 0b1011)",
+      "firstFailure": "policy v4 negatives, input level (--O0) dept bit unset in deptMask is rejected (operations vs 0b1011)",
+      "failures": [
+        "policy v4 negatives, input level (--O0) dept bit unset in deptMask is rejected (operations vs 0b1011)"
+      ],
+      "ms": 10408
+    },
+    {
+      "id": "S13",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 66,
+      "endLine": 66,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "clearanceBits.in <== clearance;",
+      "mutant": "clearanceBits.in <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceBits.in <== clearance: clearance 5 passes the 2-bit comparator without the range check",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceBits.in <== clearance: clearance 5 passes the 2-bit comparator without the range check",
+      "note": "Redundant in v4: AttributeHash also range-checks clearance with Num2Bits(2), which already bounds the comparator input. Killed standalone by policy_v4.test.js.",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceBits.in <== clearance: clearance 5 passes the 2-bit comparator without the range check"
+      ],
+      "ms": 10904
+    },
+    {
+      "id": "S14",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 68,
+      "endLine": 68,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "minClearanceBits.in <== minClearance;",
+      "mutant": "minClearanceBits.in <-- minClearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) minClearanceBits.in <== minClearance: minClearance p-1 passes the 2-bit comparator without the range check",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) minClearanceBits.in <== minClearance: minClearance p-1 passes the 2-bit comparator without the range check",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) minClearanceBits.in <== minClearance: minClearance p-1 passes the 2-bit comparator without the range check"
+      ],
+      "ms": 11384
+    },
+    {
+      "id": "S15",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 71,
+      "endLine": 71,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "clearanceOk.in[0] <== clearance;",
+      "mutant": "clearanceOk.in[0] <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[0] <== clearance: the comparator sees 3 while the attribute is 1",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[0] <== clearance: the comparator sees 3 while the attribute is 1",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[0] <== clearance: the comparator sees 3 while the attribute is 1"
+      ],
+      "ms": 10871
+    },
+    {
+      "id": "S16",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 72,
+      "endLine": 72,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "clearanceOk.in[1] <== minClearance;",
+      "mutant": "clearanceOk.in[1] <-- minClearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[1] <== minClearance: the comparator sees 2 while the policy says 3",
+      "firstFailure": "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[1] <== minClearance: the comparator sees 2 while the policy says 3",
+      "failures": [
+        "policy v4 negatives, witness level (--O0, exactly one violated row) clearanceOk.in[1] <== minClearance: the comparator sees 2 while the policy says 3"
+      ],
+      "ms": 11661
+    },
+    {
+      "id": "S17",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 73,
+      "endLine": 73,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "clearanceOk.out === 1;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) clearance one below minClearance is rejected",
+      "firstFailure": "policy v4 negatives, input level (--O0) clearance one below minClearance is rejected",
+      "failures": [
+        "policy v4 negatives, input level (--O0) clearance one below minClearance is rejected"
+      ],
+      "ms": 11112
+    },
+    {
+      "id": "S18",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 76,
+      "endLine": 76,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "requireDevice * (requireDevice - 1) === 0;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) requireDevice 2 and p-1 are rejected",
+      "firstFailure": "policy v4 negatives, input level (--O0) requireDevice 2 and p-1 are rejected",
+      "failures": [
+        "policy v4 negatives, input level (--O0) requireDevice 2 and p-1 are rejected"
+      ],
+      "ms": 10926
+    },
+    {
+      "id": "S19",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 78,
+      "endLine": 78,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "requireDevice * (1 - deviceCompliant) === 0;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) device required but not compliant is rejected",
+      "firstFailure": "policy v4 negatives, input level (--O0) device required but not compliant is rejected",
+      "failures": [
+        "policy v4 negatives, input level (--O0) device required but not compliant is rejected"
+      ],
+      "ms": 11342
+    },
+    {
+      "id": "S20",
+      "kind": "M1",
+      "file": "circuits/components/access_policy_v4.circom",
+      "line": 81,
+      "endLine": 81,
+      "template": "AccessPolicyV4",
+      "context": "",
+      "original": "employeeActive === 1;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "policy v4 negatives, input level (--O0) employeeActive 0 is rejected under every demo policy",
+      "firstFailure": "policy v4 negatives, input level (--O0) employeeActive 0 is rejected under every demo policy",
+      "failures": [
+        "policy v4 negatives, input level (--O0) employeeActive 0 is rejected under every demo policy"
+      ],
+      "ms": 11005
+    },
+    {
+      "id": "S21",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 34,
+      "endLine": 34,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "roleBits.in <== role;",
+      "mutant": "roleBits.in <-- role;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: roleBits.in <== role (role = 4 hashed, range check sees the honest value)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: roleBits.in <== role (role = 4 hashed, range check sees the honest value)",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks role with Num2Bits(2) (and the issuer signs only 0..3). Killed standalone by attribute_hash.test.js.",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: roleBits.in <== role (role = 4 hashed, range check sees the honest value)"
+      ],
+      "ms": 9243
+    },
+    {
+      "id": "S22",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 36,
+      "endLine": 36,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "deptBits.in <== dept;",
+      "mutant": "deptBits.in <-- dept;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: deptBits.in <== dept (dept = 4 hashed, range check sees the honest value)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: deptBits.in <== dept (dept = 4 hashed, range check sees the honest value)",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks dept with Num2Bits(2). Killed standalone by attribute_hash.test.js.",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: deptBits.in <== dept (dept = 4 hashed, range check sees the honest value)"
+      ],
+      "ms": 9793
+    },
+    {
+      "id": "S23",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 38,
+      "endLine": 38,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "clearanceBits.in <== clearance;",
+      "mutant": "clearanceBits.in <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: clearanceBits.in <== clearance (clearance = 4 hashed, range check sees the honest value)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: clearanceBits.in <== clearance (clearance = 4 hashed, range check sees the honest value)",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks clearance with Num2Bits(2). Killed standalone by attribute_hash.test.js.",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: clearanceBits.in <== clearance (clearance = 4 hashed, range check sees the honest value)"
+      ],
+      "ms": 9539
+    },
+    {
+      "id": "S24",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 41,
+      "endLine": 41,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "deviceCompliant * (deviceCompliant - 1) === 0;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "AttributeHash vectors and ranges (--O1) deviceCompliant = 2 is rejected (boolean)",
+      "firstFailure": "AttributeHash vectors and ranges (--O1) deviceCompliant = 2 is rejected (boolean)",
+      "failures": [
+        "AttributeHash vectors and ranges (--O1) deviceCompliant = 2 is rejected (boolean)"
+      ],
+      "ms": 6227
+    },
+    {
+      "id": "S25",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 42,
+      "endLine": 42,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "employeeActive * (employeeActive - 1) === 0;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "AttributeHash vectors and ranges (--O1) employeeActive = 2 is rejected (boolean)",
+      "firstFailure": "AttributeHash vectors and ranges (--O1) employeeActive = 2 is rejected (boolean)",
+      "note": "Redundant in v4: AccessPolicyV4 forces employeeActive === 1 under every policy (ADR 0007). Killed standalone by attribute_hash.test.js.",
+      "failures": [
+        "AttributeHash vectors and ranges (--O1) employeeActive = 2 is rejected (boolean)"
+      ],
+      "ms": 6921
+    },
+    {
+      "id": "S26",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 46,
+      "endLine": 46,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[0] <== role;",
+      "mutant": "hasher.inputs[0] <-- role;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[0] <== role (hasher fed another role, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[0] <== role (hasher fed another role, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[0] <== role (hasher fed another role, attrHash recomputed)"
+      ],
+      "ms": 9811
+    },
+    {
+      "id": "S27",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 47,
+      "endLine": 47,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[1] <== dept;",
+      "mutant": "hasher.inputs[1] <-- dept;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[1] <== dept (hasher fed another dept, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[1] <== dept (hasher fed another dept, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[1] <== dept (hasher fed another dept, attrHash recomputed)"
+      ],
+      "ms": 10686
+    },
+    {
+      "id": "S28",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 48,
+      "endLine": 48,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[2] <== clearance;",
+      "mutant": "hasher.inputs[2] <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[2] <== clearance (hasher fed another clearance, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[2] <== clearance (hasher fed another clearance, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[2] <== clearance (hasher fed another clearance, attrHash recomputed)"
+      ],
+      "ms": 10602
+    },
+    {
+      "id": "S29",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 49,
+      "endLine": 49,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[3] <== deviceCompliant;",
+      "mutant": "hasher.inputs[3] <-- deviceCompliant;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[3] <== deviceCompliant (hasher fed another deviceCompliant, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[3] <== deviceCompliant (hasher fed another deviceCompliant, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[3] <== deviceCompliant (hasher fed another deviceCompliant, attrHash recomputed)"
+      ],
+      "ms": 9986
+    },
+    {
+      "id": "S30",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 50,
+      "endLine": 50,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[4] <== employeeActive;",
+      "mutant": "hasher.inputs[4] <-- employeeActive;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[4] <== employeeActive (hasher fed another employeeActive, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[4] <== employeeActive (hasher fed another employeeActive, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[4] <== employeeActive (hasher fed another employeeActive, attrHash recomputed)"
+      ],
+      "ms": 9835
+    },
+    {
+      "id": "S31",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 51,
+      "endLine": 51,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[5] <== expiry;",
+      "mutant": "hasher.inputs[5] <-- expiry;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[5] <== expiry (hasher fed another expiry, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[5] <== expiry (hasher fed another expiry, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[5] <== expiry (hasher fed another expiry, attrHash recomputed)"
+      ],
+      "ms": 11233
+    },
+    {
+      "id": "S32",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 52,
+      "endLine": 52,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "hasher.inputs[6] <== credentialCommitment;",
+      "mutant": "hasher.inputs[6] <-- credentialCommitment;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[6] <== credentialCommitment (hasher fed another credentialCommitment, attrHash recomputed)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[6] <== credentialCommitment (hasher fed another credentialCommitment, attrHash recomputed)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: hasher.inputs[6] <== credentialCommitment (hasher fed another credentialCommitment, attrHash recomputed)"
+      ],
+      "ms": 11093
+    },
+    {
+      "id": "S33",
+      "kind": "M1",
+      "file": "circuits/components/attribute_hash.circom",
+      "line": 54,
+      "endLine": 54,
+      "template": "AttributeHash",
+      "context": "",
+      "original": "attrHash <== hasher.out;",
+      "mutant": "attrHash <-- hasher.out;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: attrHash <== hasher.out (output replaced)",
+      "firstFailure": "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: attrHash <== hasher.out (output replaced)",
+      "failures": [
+        "AttributeHash negatives, witness level (--O0, exactly one violated row each) AttributeHash: attrHash <== hasher.out (output replaced)"
+      ],
+      "ms": 10993
+    },
+    {
+      "id": "S34",
+      "kind": "M1",
+      "file": "circuits/components/challenge_binding.circom",
+      "line": 57,
+      "endLine": 57,
+      "template": "ChallengeBinding",
+      "context": "",
+      "original": "nonceSquared <== nonce * nonce;",
+      "mutant": "nonceSquared <-- nonce * nonce;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "challenge binding negatives (witness level, --O0) CB1: overwritten nonceSquared is rejected",
+      "firstFailure": "challenge binding negatives (witness level, --O0) CB1: overwritten nonceSquared is rejected",
+      "failures": [
+        "challenge binding negatives (witness level, --O0) CB1: overwritten nonceSquared is rejected"
+      ],
+      "ms": 15438
+    },
+    {
+      "id": "S35",
+      "kind": "M1",
+      "file": "circuits/components/challenge_binding.circom",
+      "line": 61,
+      "endLine": 61,
+      "template": "ChallengeBinding",
+      "context": "",
+      "original": "hasher.inputs[0] <== credentialSecret;",
+      "mutant": "hasher.inputs[0] <-- credentialSecret;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "challenge binding negatives (witness level, --O0) CB2: credentialSecret changed after witness generation is rejected",
+      "firstFailure": "challenge binding negatives (witness level, --O0) CB2: credentialSecret changed after witness generation is rejected",
+      "failures": [
+        "challenge binding negatives (witness level, --O0) CB2: credentialSecret changed after witness generation is rejected"
+      ],
+      "ms": 15230
+    },
+    {
+      "id": "S36",
+      "kind": "M1",
+      "file": "circuits/components/challenge_binding.circom",
+      "line": 62,
+      "endLine": 62,
+      "template": "ChallengeBinding",
+      "context": "",
+      "original": "hasher.inputs[1] <== resourceId;",
+      "mutant": "hasher.inputs[1] <-- resourceId;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "challenge binding negatives (witness level, --O0) CB3: public resourceId changed after witness generation is rejected",
+      "firstFailure": "challenge binding negatives (witness level, --O0) CB3: public resourceId changed after witness generation is rejected",
+      "failures": [
+        "challenge binding negatives (witness level, --O0) CB3: public resourceId changed after witness generation is rejected"
+      ],
+      "ms": 15345
+    },
+    {
+      "id": "S37",
+      "kind": "M1",
+      "file": "circuits/components/challenge_binding.circom",
+      "line": 63,
+      "endLine": 63,
+      "template": "ChallengeBinding",
+      "context": "",
+      "original": "hasher.inputs[2] <== epoch;",
+      "mutant": "hasher.inputs[2] <-- epoch;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "challenge binding negatives (witness level, --O0) CB4: public epoch changed after witness generation is rejected",
+      "firstFailure": "challenge binding negatives (witness level, --O0) CB4: public epoch changed after witness generation is rejected",
+      "failures": [
+        "challenge binding negatives (witness level, --O0) CB4: public epoch changed after witness generation is rejected"
+      ],
+      "ms": 13643
+    },
+    {
+      "id": "S38",
+      "kind": "M1",
+      "file": "circuits/components/challenge_binding.circom",
+      "line": 64,
+      "endLine": 64,
+      "template": "ChallengeBinding",
+      "context": "",
+      "original": "nullifier <== hasher.out;",
+      "mutant": "nullifier <-- hasher.out;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "challenge binding negatives (witness level, --O0) CB5: overwritten nullifier is rejected",
+      "firstFailure": "challenge binding negatives (witness level, --O0) CB5: overwritten nullifier is rejected",
+      "failures": [
+        "challenge binding negatives (witness level, --O0) CB5: overwritten nullifier is rejected"
+      ],
+      "ms": 11729
+    },
+    {
+      "id": "S39",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 15,
+      "endLine": 15,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.enabled <== 1;",
+      "mutant": "verifier.enabled <-- 1;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.enabled <== 1 (enabled forced to 0)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.enabled <== 1 (enabled forced to 0)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.enabled <== 1 (enabled forced to 0)"
+      ],
+      "ms": 44368
+    },
+    {
+      "id": "S40",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 16,
+      "endLine": 16,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.Ax <== Ax;",
+      "mutant": "verifier.Ax <-- Ax;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ax <== Ax (main.issuerAx, on-curve copy and signature.Ax negated; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ax <== Ax (main.issuerAx, on-curve copy and signature.Ax negated; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ax <== Ax (main.issuerAx, on-curve copy and signature.Ax negated; verifier honest)"
+      ],
+      "ms": 44529
+    },
+    {
+      "id": "S41",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 17,
+      "endLine": 17,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.Ay <== Ay;",
+      "mutant": "verifier.Ay <-- Ay;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ay <== Ay (main.issuerAy, on-curve copy and signature.Ay negated; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ay <== Ay (main.issuerAy, on-curve copy and signature.Ay negated; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.Ay <== Ay (main.issuerAy, on-curve copy and signature.Ay negated; verifier honest)"
+      ],
+      "ms": 45229
+    },
+    {
+      "id": "S42",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 18,
+      "endLine": 18,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.R8x <== R8x;",
+      "mutant": "verifier.R8x <-- R8x;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8x <== R8x (main.R8x, on-curve copy and signature.R8x negated; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8x <== R8x (main.R8x, on-curve copy and signature.R8x negated; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8x <== R8x (main.R8x, on-curve copy and signature.R8x negated; verifier honest)"
+      ],
+      "ms": 44818
+    },
+    {
+      "id": "S43",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 19,
+      "endLine": 19,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.R8y <== R8y;",
+      "mutant": "verifier.R8y <-- R8y;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8y <== R8y (main.R8y, on-curve copy and signature.R8y negated; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8y <== R8y (main.R8y, on-curve copy and signature.R8y negated; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.R8y <== R8y (main.R8y, on-curve copy and signature.R8y negated; verifier honest)"
+      ],
+      "ms": 47521
+    },
+    {
+      "id": "S44",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 20,
+      "endLine": 20,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.S <== S;",
+      "mutant": "verifier.S <-- S;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.S <== S (main.S and signature.S changed; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.S <== S (main.S and signature.S changed; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.S <== S (main.S and signature.S changed; verifier honest)"
+      ],
+      "ms": 47768
+    },
+    {
+      "id": "S45",
+      "kind": "M1",
+      "file": "circuits/components/eddsa_verifier.circom",
+      "line": 21,
+      "endLine": 21,
+      "template": "IssuerSignatureCheck",
+      "context": "",
+      "original": "verifier.M <== M;",
+      "mutant": "verifier.M <-- M;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.M <== M (verifier checks Bob's signed attrHash, signature.M is Alice's)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.M <== M (verifier checks Bob's signed attrHash, signature.M is Alice's)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: IssuerSignatureCheck verifier.M <== M (verifier checks Bob's signed attrHash, signature.M is Alice's)"
+      ],
+      "ms": 49249
+    },
+    {
+      "id": "S46",
+      "kind": "M1",
+      "file": "circuits/components/expiry.circom",
+      "line": 18,
+      "endLine": 18,
+      "template": "ExpiryCheck",
+      "context": "",
+      "original": "expiryBits.in <== expiry;",
+      "mutant": "expiryBits.in <-- expiry;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "expiry negatives, witness level (--O0, exactly one violated row) expiryBits.in <== expiry: expiry = now + 2^64 passes LessThan(64) without the range check",
+      "firstFailure": "expiry negatives, witness level (--O0, exactly one violated row) expiryBits.in <== expiry: expiry = now + 2^64 passes LessThan(64) without the range check",
+      "failures": [
+        "expiry negatives, witness level (--O0, exactly one violated row) expiryBits.in <== expiry: expiry = now + 2^64 passes LessThan(64) without the range check"
+      ],
+      "ms": 10256
+    },
+    {
+      "id": "S47",
+      "kind": "M1",
+      "file": "circuits/components/expiry.circom",
+      "line": 20,
+      "endLine": 20,
+      "template": "ExpiryCheck",
+      "context": "",
+      "original": "nowBits.in <== now;",
+      "mutant": "nowBits.in <-- now;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "expiry negatives, witness level (--O0, exactly one violated row) nowBits.in <== now: now = p-1 passes LessThan(64) without the range check",
+      "firstFailure": "expiry negatives, witness level (--O0, exactly one violated row) nowBits.in <== now: now = p-1 passes LessThan(64) without the range check",
+      "failures": [
+        "expiry negatives, witness level (--O0, exactly one violated row) nowBits.in <== now: now = p-1 passes LessThan(64) without the range check"
+      ],
+      "ms": 10356
+    },
+    {
+      "id": "S48",
+      "kind": "M1",
+      "file": "circuits/components/expiry.circom",
+      "line": 24,
+      "endLine": 24,
+      "template": "ExpiryCheck",
+      "context": "",
+      "original": "notExpired.in[0] <== now;",
+      "mutant": "notExpired.in[0] <-- now;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[0] <== now: the comparator sees an older now than the public one",
+      "firstFailure": "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[0] <== now: the comparator sees an older now than the public one",
+      "failures": [
+        "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[0] <== now: the comparator sees an older now than the public one"
+      ],
+      "ms": 14987
+    },
+    {
+      "id": "S49",
+      "kind": "M1",
+      "file": "circuits/components/expiry.circom",
+      "line": 25,
+      "endLine": 25,
+      "template": "ExpiryCheck",
+      "context": "",
+      "original": "notExpired.in[1] <== expiry;",
+      "mutant": "notExpired.in[1] <-- expiry;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[1] <== expiry: the comparator sees a later expiry than the attribute",
+      "firstFailure": "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[1] <== expiry: the comparator sees a later expiry than the attribute",
+      "failures": [
+        "expiry negatives, witness level (--O0, exactly one violated row) notExpired.in[1] <== expiry: the comparator sees a later expiry than the attribute"
+      ],
+      "ms": 12021
+    },
+    {
+      "id": "S50",
+      "kind": "M1",
+      "file": "circuits/components/expiry.circom",
+      "line": 26,
+      "endLine": 26,
+      "template": "ExpiryCheck",
+      "context": "",
+      "original": "notExpired.out === 1;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "expiry negatives, input level (--O0) expiry == now is rejected (expired at that second)",
+      "firstFailure": "expiry negatives, input level (--O0) expiry == now is rejected (expired at that second)",
+      "failures": [
+        "expiry negatives, input level (--O0) expiry == now is rejected (expired at that second)"
+      ],
+      "ms": 10828
+    },
+    {
+      "id": "S51",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 78,
+      "endLine": 78,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "commitmentHasher.inputs[0] <== credentialSecret;",
+      "mutant": "commitmentHasher.inputs[0] <-- credentialSecret;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[0] <== credentialSecret (Bob's secret in main and binding, hasher honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[0] <== credentialSecret (Bob's secret in main and binding, hasher honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[0] <== credentialSecret (Bob's secret in main and binding, hasher honest)"
+      ],
+      "ms": 34115
+    },
+    {
+      "id": "S52",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 79,
+      "endLine": 79,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "commitmentHasher.inputs[1] <== credentialSalt;",
+      "mutant": "commitmentHasher.inputs[1] <-- credentialSalt;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[1] <== credentialSalt (main.credentialSalt changed)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[1] <== credentialSalt (main.credentialSalt changed)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: commitmentHasher.inputs[1] <== credentialSalt (main.credentialSalt changed)"
+      ],
+      "ms": 34336
+    },
+    {
+      "id": "S53",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 82,
+      "endLine": 82,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "credentialCommitment <== commitmentHasher.out;",
+      "mutant": "credentialCommitment <-- commitmentHasher.out;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: credentialCommitment <== commitmentHasher.out (hasher over another salt, commitment kept)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: credentialCommitment <== commitmentHasher.out (hasher over another salt, commitment kept)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: credentialCommitment <== commitmentHasher.out (hasher over another salt, commitment kept)"
+      ],
+      "ms": 33959
+    },
+    {
+      "id": "S54",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 86,
+      "endLine": 86,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.role <== role;",
+      "mutant": "attr.role <-- role;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.role <== role (credential side = issuer-signed variant, main.role honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.role <== role (credential side = issuer-signed variant, main.role honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.role <== role (credential side = issuer-signed variant, main.role honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 33797
+    },
+    {
+      "id": "S55",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 87,
+      "endLine": 87,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.dept <== dept;",
+      "mutant": "attr.dept <-- dept;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.dept <== dept (credential side = issuer-signed variant, main.dept honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.dept <== dept (credential side = issuer-signed variant, main.dept honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.dept <== dept (credential side = issuer-signed variant, main.dept honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 33483
+    },
+    {
+      "id": "S56",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 88,
+      "endLine": 88,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.clearance <== clearance;",
+      "mutant": "attr.clearance <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.clearance <== clearance (credential side = issuer-signed variant, main.clearance honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.clearance <== clearance (credential side = issuer-signed variant, main.clearance honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.clearance <== clearance (credential side = issuer-signed variant, main.clearance honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 33659
+    },
+    {
+      "id": "S57",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 89,
+      "endLine": 89,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.deviceCompliant <== deviceCompliant;",
+      "mutant": "attr.deviceCompliant <-- deviceCompliant;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.deviceCompliant <== deviceCompliant (credential side = issuer-signed variant, main.deviceCompliant honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.deviceCompliant <== deviceCompliant (credential side = issuer-signed variant, main.deviceCompliant honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.deviceCompliant <== deviceCompliant (credential side = issuer-signed variant, main.deviceCompliant honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 34294
+    },
+    {
+      "id": "S58",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 90,
+      "endLine": 90,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.employeeActive <== employeeActive;",
+      "mutant": "attr.employeeActive <-- employeeActive;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.employeeActive <== employeeActive (credential side = issuer-signed variant, main.employeeActive honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.employeeActive <== employeeActive (credential side = issuer-signed variant, main.employeeActive honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.employeeActive <== employeeActive (credential side = issuer-signed variant, main.employeeActive honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 34529
+    },
+    {
+      "id": "S59",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 91,
+      "endLine": 91,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.expiry <== expiry;",
+      "mutant": "attr.expiry <-- expiry;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.expiry <== expiry (credential side = issuer-signed variant, main.expiry honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.expiry <== expiry (credential side = issuer-signed variant, main.expiry honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute",
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.expiry <== expiry (credential side = issuer-signed variant, main.expiry honest)"
+      ],
+      "forbiddenKillers": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) control: every signed variant splices into a witness that violates only rows involving that attribute"
+      ],
+      "ms": 34651
+    },
+    {
+      "id": "S60",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 92,
+      "endLine": 92,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "attr.credentialCommitment <== credentialCommitment;",
+      "mutant": "attr.credentialCommitment <-- credentialCommitment;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.credentialCommitment <== credentialCommitment (new commitment, attr hashes the old one)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.credentialCommitment <== credentialCommitment (new commitment, attr hashes the old one)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: attr.credentialCommitment <== credentialCommitment (new commitment, attr hashes the old one)"
+      ],
+      "ms": 33077
+    },
+    {
+      "id": "S61",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 96,
+      "endLine": 96,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.Ax <== issuerAx;",
+      "mutant": "signature.Ax <-- issuerAx;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ax <== issuerAx (main.issuerAx negated with its on-curve copy; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ax <== issuerAx (main.issuerAx negated with its on-curve copy; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ax <== issuerAx (main.issuerAx negated with its on-curve copy; verifier honest)"
+      ],
+      "ms": 36226
+    },
+    {
+      "id": "S62",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 97,
+      "endLine": 97,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.Ay <== issuerAy;",
+      "mutant": "signature.Ay <-- issuerAy;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ay <== issuerAy (main.issuerAy negated with its on-curve copy; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ay <== issuerAy (main.issuerAy negated with its on-curve copy; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.Ay <== issuerAy (main.issuerAy negated with its on-curve copy; verifier honest)"
+      ],
+      "ms": 36310
+    },
+    {
+      "id": "S63",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 98,
+      "endLine": 98,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.R8x <== R8x;",
+      "mutant": "signature.R8x <-- R8x;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8x <== R8x (main.R8x negated with its on-curve copy; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8x <== R8x (main.R8x negated with its on-curve copy; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8x <== R8x (main.R8x negated with its on-curve copy; verifier honest)"
+      ],
+      "ms": 36308
+    },
+    {
+      "id": "S64",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 99,
+      "endLine": 99,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.R8y <== R8y;",
+      "mutant": "signature.R8y <-- R8y;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8y <== R8y (main.R8y negated with its on-curve copy; verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8y <== R8y (main.R8y negated with its on-curve copy; verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.R8y <== R8y (main.R8y negated with its on-curve copy; verifier honest)"
+      ],
+      "ms": 36275
+    },
+    {
+      "id": "S65",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 100,
+      "endLine": 100,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.S <== S;",
+      "mutant": "signature.S <-- S;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.S <== S (main.S changed)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.S <== S (main.S changed)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.S <== S (main.S changed)"
+      ],
+      "ms": 36021
+    },
+    {
+      "id": "S66",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 101,
+      "endLine": 101,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "signature.M <== attr.attrHash;",
+      "mutant": "signature.M <-- attr.attrHash;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.M <== attr.attrHash (verifier checks Bob's signed attrHash, Alice's attr honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.M <== attr.attrHash (verifier checks Bob's signed attrHash, Alice's attr honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: signature.M <== attr.attrHash (verifier checks Bob's signed attrHash, Alice's attr honest)"
+      ],
+      "ms": 36122
+    },
+    {
+      "id": "S67",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 105,
+      "endLine": 105,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "points.Ax <== issuerAx;",
+      "mutant": "points.Ax <-- issuerAx;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ax <== issuerAx (on-curve copy negated, main and verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ax <== issuerAx (on-curve copy negated, main and verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ax <== issuerAx (on-curve copy negated, main and verifier honest)"
+      ],
+      "ms": 39068
+    },
+    {
+      "id": "S68",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 106,
+      "endLine": 106,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "points.Ay <== issuerAy;",
+      "mutant": "points.Ay <-- issuerAy;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ay <== issuerAy (on-curve copy negated, main and verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ay <== issuerAy (on-curve copy negated, main and verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.Ay <== issuerAy (on-curve copy negated, main and verifier honest)"
+      ],
+      "ms": 40564
+    },
+    {
+      "id": "S69",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 107,
+      "endLine": 107,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "points.R8x <== R8x;",
+      "mutant": "points.R8x <-- R8x;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8x <== R8x (on-curve copy negated, main and verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8x <== R8x (on-curve copy negated, main and verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8x <== R8x (on-curve copy negated, main and verifier honest)"
+      ],
+      "ms": 41553
+    },
+    {
+      "id": "S70",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 108,
+      "endLine": 108,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "points.R8y <== R8y;",
+      "mutant": "points.R8y <-- R8y;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8y <== R8y (on-curve copy negated, main and verifier honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8y <== R8y (on-curve copy negated, main and verifier honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: points.R8y <== R8y (on-curve copy negated, main and verifier honest)"
+      ],
+      "ms": 42738
+    },
+    {
+      "id": "S71",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 112,
+      "endLine": 112,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "merkle.leaf <== attr.attrHash;",
+      "mutant": "merkle.leaf <-- attr.attrHash;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.leaf <== attr.attrHash (tree proves Bob's leaf with his path, Alice's attr honest)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.leaf <== attr.attrHash (tree proves Bob's leaf with his path, Alice's attr honest)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.leaf <== attr.attrHash (tree proves Bob's leaf with his path, Alice's attr honest)"
+      ],
+      "ms": 48191
+    },
+    {
+      "id": "S72",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 113,
+      "endLine": 113,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "merkle.root <== root;",
+      "mutant": "merkle.root <-- root;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public root (slot 1) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public root (slot 1) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public root (slot 1) + 1 is rejected"
+      ],
+      "ms": 32970
+    },
+    {
+      "id": "S73",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 115,
+      "endLine": 115,
+      "template": "IntegratedAccessGateV4",
+      "context": "for",
+      "original": "merkle.pathElements[i] <== pathElements[i];",
+      "mutant": "merkle.pathElements[i] <-- pathElements[i];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathElements[i] <== pathElements[i] (main.pathElements[0] changed)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathElements[i] <== pathElements[i] (main.pathElements[0] changed)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathElements[i] <== pathElements[i] (main.pathElements[0] changed)"
+      ],
+      "ms": 46603
+    },
+    {
+      "id": "S74",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 116,
+      "endLine": 116,
+      "template": "IntegratedAccessGateV4",
+      "context": "for",
+      "original": "merkle.pathIndices[i] <== pathIndices[i];",
+      "mutant": "merkle.pathIndices[i] <-- pathIndices[i];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathIndices[i] <== pathIndices[i] (main.pathIndices[0] flipped)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathIndices[i] <== pathIndices[i] (main.pathIndices[0] flipped)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: merkle.pathIndices[i] <== pathIndices[i] (main.pathIndices[0] flipped)"
+      ],
+      "ms": 48181
+    },
+    {
+      "id": "S75",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 121,
+      "endLine": 121,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.role <== role;",
+      "mutant": "policy.role <-- role;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.role <== role (signed variant role in main, policy sees the honest value)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.role <== role (signed variant role in main, policy sees the honest value)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.role <== role (signed variant role in main, policy sees the honest value)"
+      ],
+      "ms": 44286
+    },
+    {
+      "id": "S76",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 122,
+      "endLine": 122,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.dept <== dept;",
+      "mutant": "policy.dept <-- dept;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.dept <== dept (signed variant dept in main, policy sees the honest value)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.dept <== dept (signed variant dept in main, policy sees the honest value)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.dept <== dept (signed variant dept in main, policy sees the honest value)"
+      ],
+      "ms": 44632
+    },
+    {
+      "id": "S77",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 123,
+      "endLine": 123,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.clearance <== clearance;",
+      "mutant": "policy.clearance <-- clearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.clearance <== clearance (signed variant clearance in main, policy sees the honest value)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.clearance <== clearance (signed variant clearance in main, policy sees the honest value)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.clearance <== clearance (signed variant clearance in main, policy sees the honest value)"
+      ],
+      "ms": 44361
+    },
+    {
+      "id": "S78",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 124,
+      "endLine": 124,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.deviceCompliant <== deviceCompliant;",
+      "mutant": "policy.deviceCompliant <-- deviceCompliant;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.deviceCompliant <== deviceCompliant (signed variant deviceCompliant in main, policy sees the honest value)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.deviceCompliant <== deviceCompliant (signed variant deviceCompliant in main, policy sees the honest value)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.deviceCompliant <== deviceCompliant (signed variant deviceCompliant in main, policy sees the honest value)"
+      ],
+      "ms": 45529
+    },
+    {
+      "id": "S79",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 125,
+      "endLine": 125,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.employeeActive <== employeeActive;",
+      "mutant": "policy.employeeActive <-- employeeActive;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.employeeActive <== employeeActive (signed variant employeeActive in main, policy sees the honest value)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.employeeActive <== employeeActive (signed variant employeeActive in main, policy sees the honest value)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: policy.employeeActive <== employeeActive (signed variant employeeActive in main, policy sees the honest value)"
+      ],
+      "ms": 47230
+    },
+    {
+      "id": "S80",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 126,
+      "endLine": 126,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.roleMask <== roleMask;",
+      "mutant": "policy.roleMask <-- roleMask;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public roleMask (slot 4) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public roleMask (slot 4) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public roleMask (slot 4) + 1 is rejected"
+      ],
+      "ms": 31954
+    },
+    {
+      "id": "S81",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 127,
+      "endLine": 127,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.deptMask <== deptMask;",
+      "mutant": "policy.deptMask <-- deptMask;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public deptMask (slot 5) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public deptMask (slot 5) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public deptMask (slot 5) + 1 is rejected"
+      ],
+      "ms": 33451
+    },
+    {
+      "id": "S82",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 128,
+      "endLine": 128,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.minClearance <== minClearance;",
+      "mutant": "policy.minClearance <-- minClearance;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public minClearance (slot 6) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public minClearance (slot 6) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public minClearance (slot 6) + 1 is rejected"
+      ],
+      "ms": 31197
+    },
+    {
+      "id": "S83",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 129,
+      "endLine": 129,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "policy.requireDevice <== requireDevice;",
+      "mutant": "policy.requireDevice <-- requireDevice;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public requireDevice (slot 7) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public requireDevice (slot 7) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public requireDevice (slot 7) + 1 is rejected"
+      ],
+      "ms": 29263
+    },
+    {
+      "id": "S84",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 133,
+      "endLine": 133,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "expiryCheck.expiry <== expiry;",
+      "mutant": "expiryCheck.expiry <-- expiry;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: expiryCheck.expiry <== expiry (EXPIRED signed credential in main, expiry check sees the honest expiry)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: expiryCheck.expiry <== expiry (EXPIRED signed credential in main, expiry check sees the honest expiry)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: expiryCheck.expiry <== expiry (EXPIRED signed credential in main, expiry check sees the honest expiry)"
+      ],
+      "ms": 42686
+    },
+    {
+      "id": "S85",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 134,
+      "endLine": 134,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "expiryCheck.now <== now;",
+      "mutant": "expiryCheck.now <-- now;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public now (slot 8) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public now (slot 8) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public now (slot 8) + 1 is rejected"
+      ],
+      "ms": 27895
+    },
+    {
+      "id": "S86",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 138,
+      "endLine": 138,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "binding.credentialSecret <== credentialSecret;",
+      "mutant": "binding.credentialSecret <-- credentialSecret;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: binding.credentialSecret <== credentialSecret (binding and nullifier from Bob's witness)",
+      "firstFailure": "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: binding.credentialSecret <== credentialSecret (binding and nullifier from Bob's witness)",
+      "failures": [
+        "v4 negatives, witness level (--O0, exactly one violated row per gate wiring line) negatives gate: binding.credentialSecret <== credentialSecret (binding and nullifier from Bob's witness)"
+      ],
+      "ms": 44627
+    },
+    {
+      "id": "S87",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 139,
+      "endLine": 139,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "binding.nonce <== nonce;",
+      "mutant": "binding.nonce <-- nonce;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nonce (slot 9) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nonce (slot 9) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nonce (slot 9) + 1 is rejected"
+      ],
+      "ms": 31985
+    },
+    {
+      "id": "S88",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 140,
+      "endLine": 140,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "binding.resourceId <== resourceId;",
+      "mutant": "binding.resourceId <-- resourceId;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public resourceId (slot 10) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public resourceId (slot 10) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public resourceId (slot 10) + 1 is rejected"
+      ],
+      "ms": 32846
+    },
+    {
+      "id": "S89",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 141,
+      "endLine": 141,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "binding.epoch <== epoch;",
+      "mutant": "binding.epoch <-- epoch;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public epoch (slot 11) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public epoch (slot 11) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public epoch (slot 11) + 1 is rejected"
+      ],
+      "ms": 32004
+    },
+    {
+      "id": "S90",
+      "kind": "M1",
+      "file": "circuits/components/integrated_access_v4_gate.circom",
+      "line": 142,
+      "endLine": 142,
+      "template": "IntegratedAccessGateV4",
+      "context": "",
+      "original": "nullifier <== binding.nullifier;",
+      "mutant": "nullifier <-- binding.nullifier;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nullifier (slot 0) + 1 is rejected",
+      "firstFailure": "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nullifier (slot 0) + 1 is rejected",
+      "failures": [
+        "v4 negatives, public slots (--O1): every public signal changed after witness generation --O1: public nullifier (slot 0) + 1 is rejected"
+      ],
+      "ms": 29293
+    },
+    {
+      "id": "S91",
+      "kind": "M1",
+      "file": "circuits/components/issuer_key.circom",
+      "line": 27,
+      "endLine": 27,
+      "template": "SignaturePointsOnCurve",
+      "context": "",
+      "original": "keyOnCurve.x <== Ax;",
+      "mutant": "keyOnCurve.x <-- Ax;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.x <== Ax (main.Ax tampered, BabyCheck sees the honest point)",
+      "firstFailure": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.x <== Ax (main.Ax tampered, BabyCheck sees the honest point)",
+      "failures": [
+        "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.x <== Ax (main.Ax tampered, BabyCheck sees the honest point)"
+      ],
+      "ms": 15693
+    },
+    {
+      "id": "S92",
+      "kind": "M1",
+      "file": "circuits/components/issuer_key.circom",
+      "line": 28,
+      "endLine": 28,
+      "template": "SignaturePointsOnCurve",
+      "context": "",
+      "original": "keyOnCurve.y <== Ay;",
+      "mutant": "keyOnCurve.y <-- Ay;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.y <== Ay (main.Ay tampered, BabyCheck sees the honest point)",
+      "firstFailure": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.y <== Ay (main.Ay tampered, BabyCheck sees the honest point)",
+      "failures": [
+        "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: keyOnCurve.y <== Ay (main.Ay tampered, BabyCheck sees the honest point)"
+      ],
+      "ms": 13913
+    },
+    {
+      "id": "S93",
+      "kind": "M1",
+      "file": "circuits/components/issuer_key.circom",
+      "line": 32,
+      "endLine": 32,
+      "template": "SignaturePointsOnCurve",
+      "context": "",
+      "original": "r8OnCurve.x <== R8x;",
+      "mutant": "r8OnCurve.x <-- R8x;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.x <== R8x (main.R8x tampered, BabyCheck sees the honest point)",
+      "firstFailure": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.x <== R8x (main.R8x tampered, BabyCheck sees the honest point)",
+      "failures": [
+        "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.x <== R8x (main.R8x tampered, BabyCheck sees the honest point)"
+      ],
+      "ms": 13095
+    },
+    {
+      "id": "S94",
+      "kind": "M1",
+      "file": "circuits/components/issuer_key.circom",
+      "line": 33,
+      "endLine": 33,
+      "template": "SignaturePointsOnCurve",
+      "context": "",
+      "original": "r8OnCurve.y <== R8y;",
+      "mutant": "r8OnCurve.y <-- R8y;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.y <== R8y (main.R8y tampered, BabyCheck sees the honest point)",
+      "firstFailure": "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.y <== R8y (main.R8y tampered, BabyCheck sees the honest point)",
+      "failures": [
+        "SignaturePointsOnCurve negatives, witness level (--O0, exactly one violated row each) SignaturePointsOnCurve: r8OnCurve.y <== R8y (main.R8y tampered, BabyCheck sees the honest point)"
+      ],
+      "ms": 13524
+    },
+    {
+      "id": "S95",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 38,
+      "endLine": 38,
+      "template": "MerkleMembershipN",
+      "context": "",
+      "original": "hashes[0] <== leaf;",
+      "mutant": "hashes[0] <-- leaf;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[0] <== leaf (tree built over another leaf, leaf kept honest)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[0] <== leaf (tree built over another leaf, leaf kept honest)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[0] <== leaf (tree built over another leaf, leaf kept honest)"
+      ],
+      "ms": 12339
+    },
+    {
+      "id": "S96",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 41,
+      "endLine": 41,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "pathIndices[i] * (pathIndices[i] - 1) === 0;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) pathIndices[0] = 2 is rejected even with the root recomputed for index 2 (boolean check)",
+      "firstFailure": "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) pathIndices[0] = 2 is rejected even with the root recomputed for index 2 (boolean check)",
+      "failures": [
+        "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) pathIndices[0] = 2 is rejected even with the root recomputed for index 2 (boolean check)"
+      ],
+      "ms": 10412
+    },
+    {
+      "id": "S97",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 43,
+      "endLine": 45,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "left[i] <== hashes[i] + pathIndices[i] * (pathElements[i] - hashes[i]);",
+      "mutant": "left[i] <-- hashes[i] + pathIndices[i] * (pathElements[i] - hashes[i]);",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: left[0] <== hashes + idx*(sibling - hashes) (left perturbed, tree recomputed)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: left[0] <== hashes + idx*(sibling - hashes) (left perturbed, tree recomputed)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: left[0] <== hashes + idx*(sibling - hashes) (left perturbed, tree recomputed)"
+      ],
+      "ms": 13447
+    },
+    {
+      "id": "S98",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 47,
+      "endLine": 49,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "right[i] <== pathElements[i] + pathIndices[i] * (hashes[i] - pathElements[i]);",
+      "mutant": "right[i] <-- pathElements[i] + pathIndices[i] * (hashes[i] - pathElements[i]);",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: right[0] <== sibling + idx*(hashes - sibling) (right perturbed, tree recomputed)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: right[0] <== sibling + idx*(hashes - sibling) (right perturbed, tree recomputed)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: right[0] <== sibling + idx*(hashes - sibling) (right perturbed, tree recomputed)"
+      ],
+      "ms": 13976
+    },
+    {
+      "id": "S99",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 53,
+      "endLine": 53,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "hashers[i].inputs[0] <== left[i];",
+      "mutant": "hashers[i].inputs[0] <-- left[i];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[0] <== left[0] (hasher fed another value)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[0] <== left[0] (hasher fed another value)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[0] <== left[0] (hasher fed another value)"
+      ],
+      "ms": 16525
+    },
+    {
+      "id": "S100",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 54,
+      "endLine": 54,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "hashers[i].inputs[1] <== right[i];",
+      "mutant": "hashers[i].inputs[1] <-- right[i];",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[1] <== right[0] (hasher fed another value)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[1] <== right[0] (hasher fed another value)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashers[0].inputs[1] <== right[0] (hasher fed another value)"
+      ],
+      "ms": 16399
+    },
+    {
+      "id": "S101",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 56,
+      "endLine": 56,
+      "template": "MerkleMembershipN",
+      "context": "for",
+      "original": "hashes[i + 1] <== hashers[i].out;",
+      "mutant": "hashes[i + 1] <-- hashers[i].out;",
+      "description": "<== -> <-- (assigned, unconstrained)",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[1] <== hashers[0].out (hash output replaced, tree recomputed)",
+      "firstFailure": "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[1] <== hashers[0].out (hash output replaced, tree recomputed)",
+      "failures": [
+        "MerkleMembershipN(4) negatives, witness level (--O0, exactly one violated row each) MerkleMembershipN: hashes[1] <== hashers[0].out (hash output replaced, tree recomputed)"
+      ],
+      "ms": 15411
+    },
+    {
+      "id": "S102",
+      "kind": "M1",
+      "file": "circuits/components/merkle_membership_n.circom",
+      "line": 59,
+      "endLine": 59,
+      "template": "MerkleMembershipN",
+      "context": "",
+      "original": "hashes[depth] === root;",
+      "mutant": "(deleted)",
+      "description": "delete the === constraint",
+      "outcome": "killed",
+      "killer": "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) wrong root is rejected",
+      "firstFailure": "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) wrong root is rejected",
+      "failures": [
+        "MerkleMembershipN(4) (G1-S1-CIRC-030) negatives, input level (--O2) wrong root is rejected"
+      ],
+      "ms": 11653
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Powers of Tau files are large build inputs (cached in ~/zkp-cache/ptau by circuits/scripts/ptau.sh).
+ptau/
+*.ptau
+*.ptau.info.json
+*.part
+# Proving keys and witness generators are build outputs (build/<name>/), never committed...
+*.zkey
+*.wasm
+# ...except the proving pair that matches a committed verification key + manifest (decision D7,
+# ARTIFACTS.md). Never commit a zkey without its matching vkey and manifest in the same commit.
+!integrated_access_v3.zkey
+!integrated_access_v3.wasm
+!integrated_access_v4.zkey
+!integrated_access_v4.wasm

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Format one file by extension. Called by agentic-kit's post-edit hook as `scripts/fmt <file>`.
+set -uo pipefail
+f="${1:?usage: scripts/fmt <file>}"
+case "$f" in
+  *.py) exec uvx ruff format "$f" ;;
+  *.ts|*.tsx|*.js|*.jsx|*.css|*.scss|*.json|*.md) exec npx --no-install prettier --write "$f" ;;
+  *) exit 0 ;;
+esac

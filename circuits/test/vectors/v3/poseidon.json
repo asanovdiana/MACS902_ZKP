@@ -1,0 +1,29 @@
+{
+  "TEST_ONLY": "TEST-ONLY reference vectors for ZK Access Gate. All keys and secrets are sha256 of public labels and protect nothing. Never use them outside tests.",
+  "implementation": "circomlibjs 0.1.7 buildPoseidon, F.toObject(poseidon([...])) == circomlib 2.0.5 Poseidon(n)",
+  "samples": {
+    "2": [
+      {
+        "inputs": [
+          "0",
+          "0"
+        ],
+        "out": "14744269619966411208579211824598458697587494354926760081771325075741142829156"
+      },
+      {
+        "inputs": [
+          "1",
+          "2"
+        ],
+        "out": "7853200120776062878684798364095072458815029376092732009249414926327459813530"
+      },
+      {
+        "inputs": [
+          "11",
+          "22"
+        ],
+        "out": "1827964288545250284843299140819229108810328753457865284098308150451142241746"
+      }
+    ]
+  }
+}

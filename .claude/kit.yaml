@@ -1,0 +1,151 @@
+# agentic-kit profile for ZK Access Gate.
+# Source of truth: docs/project-scope.md and docs/technology-explained.md (inherited below).
+# Re-render after editing:
+#   uv run --project "${CLAUDE_PLUGIN_ROOT}/kitgen" kitgen render \
+#     --profile .claude/kit.yaml --out . --dry-run --force --merge
+
+kit_version: 1.10.5
+rendered_on: "2026-11-02"
+
+project:
+  name: ZK Access Gate
+  slug: zkgate
+  summary: >-
+    Zero-trust gateway that admits employees to internal services on a Groth16 proof that their
+    issuer-signed credential is valid, unrevoked and satisfies the resource policy, without the
+    gateway learning who they are.
+
+forge:
+  kind: github
+  remote: "https://github.com/<team>/<repo>"   # placeholder: set to the team's shared repository
+  cli: gh
+  ci: null                       # no workflow exists yet; set to .github/workflows/<file> once
+                                 # devops adds it (scope: security suite must pass in CI)
+  exclusive: true
+  mirror: null
+
+attribution:
+  # true: commits in this repo carry a Co-Authored-By trailer for the assistant.
+  mention_assistant_in_commits: true
+
+spine:
+  plan: docs/plan/README.md
+  strategy: docs/strategy.md
+  design: docs/design.md
+  decisions: docs/decisions.md
+  risks: docs/risk-register.md
+  contracts: docs/CONTRACTS.md   # the scope's week-1 interface contract (credential JSON,
+                                 # proof request/response API, public-input order). Unowned.
+  inherited:
+    - docs/project-scope.md
+    - docs/technology-explained.md
+
+load_order:
+  - {path: docs/plan/README.md, mode: full}
+  - {path: docs/strategy.md, mode: sections, sections: ["2", "3", "5", "6", "11"]}
+  - {path: docs/decisions.md, mode: full}
+  - {path: docs/risk-register.md, mode: full}
+  - {path: docs/design.md, mode: on_demand}
+
+milestones:
+  # Prefix G (gate), not M: the scope already uses M1..M8 for its must-have items.
+  prefix: G
+  id_format: "{milestone}-S{sprint}-{OWNER}-{nnn}"
+  outline:
+    - {id: G0, name: "Foundations: interface contract, toy circuit, Poseidon cross-check"}
+    - {id: G1, name: "End-to-end proof verifies (week-4 critical gate)"}
+    - {id: G2, name: "Full demo runs on make demo"}
+    - {id: G3, name: "Evaluation, report and delivery"}
+
+roles:
+  # Split by the scope's monorepo layout. Unowned on purpose: tests/unit/**, docs/gates/**,
+  # docs/CONTRACTS.md, docs/report/**.
+  - name: architect
+    description: Interface contract, ADRs, module boundaries, public-input order.
+    owns: ["docs/adr/**"]
+    handoff_extra: []
+    veto: false
+    model: opus
+  - name: circuits
+    description: "M3 access circuit, circuit tests (circom_tester), trusted setup, constraint optimisation."
+    owns: ["circuits/**"]
+    handoff_extra: ["CONSTRAINTS:", "PUBLIC INPUTS:", "NEGATIVE TESTS:"]
+    veto: false
+    # opus rather than the kit's default sonnet for implementers: an under-constrained
+    # signal is a silent soundness hole, and this is the scope's highest-risk item.
+    model: opus
+  - name: identity
+    description: "M1 issuer, M2 Merkle registry + revocation, M4 client prover."
+    owns: ["issuer/**", "client/**"]
+    handoff_extra: ["POSEIDON PARAMS:"]
+    veto: false
+    model: sonnet
+  - name: gateway
+    description: "M5 verifier gateway (reverse proxy, nonce, root, nullifier, sessions) and the three demo services."
+    owns: ["gateway/**", "services/**"]
+    handoff_extra: ["GATEWAY LOG FIELDS:"]
+    veto: false
+    model: sonnet
+  - name: frontend
+    description: "M6 demo UI: User Portal, Gateway Live View, SSO vs ZK split screen, Admin Console, Attack Lab."
+    owns: ["ui/**"]
+    handoff_extra: []
+    veto: false
+    model: sonnet
+  - name: devops
+    description: "Docker Compose, make demo, CI, M7 Keycloak baseline."
+    owns: ["docker/**", "keycloak/**", ".github/**", "scripts/**", "compose.yaml", "Makefile"]
+    handoff_extra: ["SERVICES:", "RUNBOOK:"]
+    veto: false
+    model: sonnet
+  - name: qa
+    description: "Integration and e2e tiers, M8 benchmarks (median/p95 over 100 runs)."
+    owns: ["tests/integration/**", "tests/e2e/**", "bench/**"]
+    handoff_extra: ["COVERAGE DELTA:", "BENCH DELTA:"]
+    veto: false
+    model: sonnet
+  - name: safety
+    description: "Floors, threat model, security test suite and Attack Lab cases."
+    owns: ["tests/safety/**", "docs/security/**"]
+    handoff_extra: ["FLOOR DELTA:", "VETO:"]
+    veto: true
+    model: opus
+
+floors:
+  # From the scope's "Security tests (all must pass)" and risk table.
+  - "every circuit constraint has a negative test that fails when the constraint is removed; every <-- is followed by an === that checks it"
+  - "no valid proof exists for an unsatisfied policy, a tampered attribute, a forged issuer signature, or an expired credential"
+  - "a revoked credential is denied against the current root"
+  - "a replayed proof (used or expired nonce) is denied"
+  - "the same nullifier twice in one epoch is rate-limited; nullifiers from one user to different services are unlinkable"
+  - "private inputs (attributes, issuer signature, Merkle path, user secret) never leave the client; the issuer sees only secret_commitment"
+  - "the gateway log and gateway state hold no username, email, role, department or clearance"
+  - "circuit, issuer and client use identical Poseidon parameters (cross-check test)"
+  - "no plaintext credentials or issuer private keys in the tree"
+  - "tests/safety/** is append-only"
+
+critical: []
+
+test_tiers: {unit: 80, integration: 70, floor: 95}
+
+toolchain:
+  # Polyglot monorepo (Circom + Node, Python FastAPI, React/TS), so every entry goes through
+  # the Makefile that `make demo` already requires; devops owns it.
+  pm: npm
+  test: "make test"
+  format: "scripts/fmt"          # dispatches by extension: ruff format / prettier --write
+  lint: "make lint"
+  types: "make types"
+
+secrets:
+  - ./.env
+  - ./**/.env
+  - ./secrets/**
+  - ./issuer/keys/**             # the issuer's EdDSA signing key
+
+observability: true              # the Gateway Live View and benchmarks consume these events
+
+usage:
+  five_hour_pct: 0
+  seven_day_pct: 95
+  stale_after_s: 900

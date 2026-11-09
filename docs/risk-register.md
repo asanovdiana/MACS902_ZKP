@@ -1,0 +1,17 @@
+# Risk register
+
+**Owner.** Orchestrator. Reviewed at every gate. A risk is closed by evidence, not by time passing.
+
+| ID | Risk | Likelihood | Impact | Mitigation | Owner | Status |
+|---|---|---|---|---|---|---|
+| R-001 | P1 v3 does not bind attributes to the signed message or leaf, and keeps the issuer key private: any credential holder can claim any role, and a self-signed credential verifies (floor 2) | certain (demonstrated 2026-11-08: changed role/clearance with the same signature still produces a witness) | high | G1-S1-CIRC-031 (attribute hash), G1-S1-CIRC-032 (public issuer key); gateway pins the issuer key | P2 (`circuits`) | closed for v4 2026-11-08 (CIRC-031/032; tests F2.x; gate G1). v3 keeps the gaps by design and is not admissible at a gateway (F2.12) |
+| R-002 | Circuit not end to end on v4 by the week-4 gate | medium | high | v3 end to end at G0 as a demoable baseline; scope fallback: cut nullifier and expiry (CIRC-034/035) | P2 | closed 2026-11-08: v4 e2e proof from an issued credential verifies (gate G1) |
+| R-003 | Encoding drift between circuit, issuer and client (Poseidon parameters, role/dept enums, `pathIndices` direction) | medium | high | single encoder in `circuits/lib` (D2), reference vectors, cross-check suite G1-S1-IDEN-013 | P2 (`identity`) | mitigated 2026-11-08: cross-check suite, 263 values agree (G1-S1-IDEN-013, F8.x); kept open while encodings evolve |
+| R-004 | Role/dept encoding unknown (P1's File Share policy allows `role ∈ {2,3}`) | certain until answered | medium | decision D6 answered by P1 before G0-S1-ARCH-010 closes | P2 with P1 | closed 2026-11-08: encoding is ours to set (D6: engineer 0, admin 1, contractor 2, finance 3; dept 0–3); v3 File Share values ignored |
+| R-005 | P2's circuit additions conflict with P1's ongoing work on the same circuit files | medium | medium | new components beside hers, small separate commits for edits to her files, P1 reviews every circuit change | P2 with P1 | open |
+| R-006 | Toolchain skew: circuit pins circom 2.2.3; machines on 2.2.2 fail to compile | medium | low | pin in README and CI; version check in the test setup (G0-S1-CIRC-020) | P2 (`circuits`) | open |
+| R-007 | No CI pipeline and no Makefile (safety SR-17): every green result is a local run; `make test` / `make demo` do not exist | certain | high | `npm run test:all` as the interim entry point; `devops` to add `.github/workflows` running all suites + `artifacts:check` + `gen-vectors --check`, and a `make test` target | `devops` | open |
+| R-008 | Gateway obligations 1–8 not implemented (SR-05): floors 2–5 and 7 are only half-enforced; 4 floor tests are todo, so the floor-tier ratio sits exactly at 95% | certain until P3 lands | high | contract `access.public_signals v4` lists the obligations; fixtures + Attack Lab model gateway define expected rejections; P3 implements, safety turns F3.09/F4.06/F5.07/F7.05 green | `gateway` (P3), `safety` | open |
+| R-009 | Committed keys are demo-only: phase 1 is PSE ppot prepared from contribution 0080 (public; 62 contributions in its transcript; 0080 linkage checked, full verify not run — SR-21), phase 2 is single-party (SR-06) | certain | high for real use, low for the demo | multi-party phase-2 ceremony with the team (G2-S1-CIRC-040) before any real use; keys labelled DEV-ONLY | team (`circuits`) | open |
+
+Add rows with `/risk`. Number them `R-001` upward and never reuse a number.

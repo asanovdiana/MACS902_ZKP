@@ -1,0 +1,50 @@
+{
+  "name": "integrated_access_v4",
+  "status": "DEV-ONLY",
+  "status_detail": "DEMO-ONLY (single-party phase 2): phase 1 is a public ceremony, phase 2 is one local contribution + beacon; not for production",
+  "circuit": "circuits/integrated_access_v4.circom",
+  "protocol": "groth16",
+  "curve": "bn128",
+  "circom_version": "2.2.3",
+  "circom_flags": "--O2 --r1cs --wasm --sym",
+  "snarkjs_version": "0.7.6",
+  "constraints": 9208,
+  "n_public": 12,
+  "public_signals": [
+    "nullifier",
+    "root",
+    "issuerAx",
+    "issuerAy",
+    "roleMask",
+    "deptMask",
+    "minClearance",
+    "requireDevice",
+    "now",
+    "nonce",
+    "resourceId",
+    "epoch"
+  ],
+  "r1cs_sha256": "652dae08da61188959fc3eb80039500427350cb79cdf58d498ed0bc6bac2714c",
+  "wasm_sha256": "b6651dd53459fe72ae8bc4483385868500d55012a7f5f5418fee8dc8af49770b",
+  "zkey_sha256": "08ea2e979593146d3914fd8fc24fac20edd37005450babc890f8af9f55a8bbb2",
+  "verification_key_sha256": "ccfe7a47bdbc822604e0e8d6303e374dba9ff0f79b21483ab67504428de80c9a",
+  "ptau": {
+    "source": "pse-ppot-0080",
+    "file": "ppot_0080_15.ptau",
+    "power": 15,
+    "blake2b": "a6dd3adcf80f6716c4d082be2626e790af1f5ed3d760814dc439a07d91e93421382c91d4f705abe8cd90ef1956e4b7eaf58db29d81be5abe624dab4dae827f24",
+    "provenance": "PSE Perpetual Powers of Tau contribution 0080, prepared for phase 2 with a beacon (Ethereum beacon chain slot 7,325,000 randao_reveal, 31 iterations); downloaded over HTTPS from PSE's official bucket (https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080); header power 15, ceremonyPower 28, sections 12-15 present, 62 contributions in section 7; section 7 contains the published challenge_0080 hash (d9ec6fad4a7a7e3358a0c4bed7171622...) at offset 90185 and challenge_0081 hash (4bf672f3ba1de1bb6105e1ab88359612...) at offset 91706, matching 0080_carter_response/README.md; blake2b-512 pinned on first download 2026-11-08 (PSE publishes no hash for prepared files); full snarkjs powersoftau verify not run (2^28-point initial hash infeasible in the sandbox)"
+  },
+  "phase2": {
+    "contributions": 1,
+    "entropy": "/dev/urandom (64 bytes) on stdin, mixed by snarkjs with crypto.randomBytes",
+    "beacon": true,
+    "beacon_hash": "9d9a6df70bb3c4ee66bd749c8586d1a52d6a3e13afcca9de6ddb47afc8805c17",
+    "beacon_iterations_exp": 10
+  },
+  "limitations": [
+    "single-party phase 2 — whoever ran setup could forge proofs; replace via the multi-party ceremony before any real use",
+    "phase 1 blake2b-512 pinned on first download (PSE publishes no hash for prepared files); full snarkjs powersoftau verify not run (see ptau.provenance)"
+  ],
+  "date": "2026-11-08T09:53:12.796Z"
+}

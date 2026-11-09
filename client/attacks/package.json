@@ -1,0 +1,13 @@
+{
+  "name": "zkgate-attacks",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZK Access Gate Attack Lab scripts: attack requests, expected reason codes, CLI",
+  "main": "src/index.js",
+  "bin": { "zkgate-attacks": "bin/attacks.js" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\""
+  },
+  "engines": { "node": ">=20" },
+  "license": "ISC"
+}

@@ -1,0 +1,2 @@
+# Fixed-NOW client tests need a pinned issuer clock
+Client tests that use NOW=1794128400 (2026-11-08) must start the real issuer with `startRealIssuer({ clock: () => NOW })`; the issuer rejects past expiries against its clock (default wall clock) at enrolment, so an unpinned issuer is a time bomb. Pure lib/circuit vectors with explicit `now` are not time bombs. Verify with a Date shim via NODE_OPTIONS=--require (scratchpad) at +60 days. See [[MEMORY]].

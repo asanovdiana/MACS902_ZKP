@@ -1,0 +1,772 @@
+{
+  "description": "Append-only registry of safety test IDs (floor 10). Add new entries at the end; never remove or rename an entry. Checked by floor10-append-only.test.js.",
+  "tests": [
+    {
+      "id": "F1.01",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "mutation report: baseline passes, 0 survivors, 0 compile errors/timeouts/errors",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.02",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "mutation report is not stale: every mutated site still reads as recorded",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.03",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "mutation report is complete: every constraint statement in every target is a site",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.04",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "every project circuit file in the v4 main's include closure is covered",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.05",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "arrow audit (circuits/scripts/mutate.js --audit-arrows) reports 0 violations",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.06",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "independent arrow audit: each <-- / --> is followed by an === on the same signal",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.07",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "the 7 redundant-but-killed v4 sites are killed by their component's own spec",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.08",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "v3: the 2 equivalent mutants (redundant booleans in P1's main) keep their equivalence tests",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.00",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "control: the TEST-ONLY issuer key reproduces the fixtures' pinned key and an honest input has a witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.01",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "tampered attribute (each of the 6, signature and path kept) -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.02",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "tampered attribute that WOULD satisfy the stricter policy (engineer claims admin, clearance 3) -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.03",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "forged signature under the PINNED key (attrHash signed by another key, pinned key claimed) -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.04",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "self-signed credential under the FORGER's key: witness exists (by design) but the proof carries the forger key; with the pinned key substituted it does not verify",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.05",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "off-curve issuer key or R8 -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.06",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "unsatisfied policy with honest, issuer-signed attributes -> no witness (each policy clause)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.07",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "a valid proof for one policy does not verify with another resource's policy signals",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.08",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "expired credential (expiry == now, expiry < now) -> no witness; expiry = now + 1 -> witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.09",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "range wrap-arounds on expiry/now (expiry = now + 2^64, now = p - 1) -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.10",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "out-of-range attribute even when the issuer signed it (role 4, clearance 5, device 2) -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.11",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "the real issuer refuses expired and out-of-range attributes (issuer.api v1)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.12",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "v3 proofs are not admissible under the v4 key (v3 binds no issuer/policy/time)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.13",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "every one of the 12 public signals tampered on a valid fixture -> verify false",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F2.14",
+      "file": "floor02-no-valid-proof.test.js",
+      "floors": [
+        2
+      ],
+      "title": "only an authenticated enrolment path can obtain issuer-signed attributes",
+      "resolved": "G1-S1-SAFETY-021: real test against issuer.api v2 / issuer.admin v1.1 (SR-03 closed by G1-S1-IDEN-014); was todo",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.01",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "control: before revocation Bob's input had a witness against the then-current root",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.02",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "revoked: GET /path is 410 and the client refuses to prepare a proof",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.03",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "Bob's old path against the CURRENT root -> no witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.04",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "Bob's leaf with the CURRENT tree's siblings at his index -> no witness (his slot is 0 now)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.05",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "the zero leaf is a tree member, but v4 has no leaf/M input: the leaf is the in-circuit attrHash",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.06",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "unrevoked Alice still proves against the current root (revocation is targeted)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.07",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "staleness rule: a root superseded by a revocation is never acceptable, even inside 30 s",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.08",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "fixtures: stale_root_bob_wiki carries the pre-revocation root, which the vectors' tree loses on delete(1)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.10",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "a revoked holder cannot obtain a replacement credential without the admin",
+      "resolved": "G1-S1-SAFETY-021: real test against issuer.api v2 / issuer.admin v1.1 (SR-03 closed by G1-S1-IDEN-014); was todo",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F3.09",
+      "file": "floor03-revocation.test.js",
+      "floors": [
+        3
+      ],
+      "title": "gateway denies a revoked credential against its current root",
+      "pending": "gateway (P3) not in this repository; fixture stale_root_bob_wiki is its test input",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.01",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "the nonce is bound: a valid proof with any other nonce does not verify",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.02",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "non-canonical spellings of a used nonce do not verify (replay state keyed on the canonical value)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.03",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "Groth16 malleability: (-A, -B, C) verifies, so replay/rate-limit state must never key on proof bytes",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.04",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "now/epoch bound: the stale_now fixture carries an old now (outside the 120 s TTL) and its own epoch",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.05",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "the circuit binds now and epoch: changing either in the witness input changes or breaks the proof statement",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F4.06",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        4
+      ],
+      "title": "gateway denies a used nonce and an expired nonce (TTL 120 s)",
+      "pending": "gateway (P3) not in this repository; replay of alice_wiki and stale_now_alice_wiki are its test inputs",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.01",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "nullifier = Poseidon(3)(credentialSecret, resourceId, epoch): lib == fixture == witness",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.02",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "same user, same resource, same epoch, different nonces -> equal nullifiers (rate-limitable)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.03",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "nullifier independent of nonce and of now within the epoch (witness level)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.04",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "unlinkable across services: same user, different resourceId -> different nullifiers",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.05",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "nothing in the public signals links one user's proofs across services except shared policy/root/issuer",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.06",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "different epochs -> different nullifiers (sessions do not link across epochs)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F5.07",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "gateway rate-limits (nullifier, epoch) to one admission per epoch",
+      "pending": "gateway (P3) not in this repository; same_epoch_a then same_epoch_b is its test input",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.01",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "issuer answers 400 forbidden_field to any secret/salt key, at any depth and spelling, without echoing it",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.02",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "the client's POST /credentials body is allow-listed: extra properties never reach the wire",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.03",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "a full enrol + prove-prepare session sends no secret, salt, signature or path to anyone",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.04",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "towards the gateway only {resource, nonce, proof, publicSignals} is sent",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.05",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "committed fixtures hold no private value of any persona (secret, salt, commitment, attrHash, signature, path)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.06",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "issuer state on disk holds the commitment and leaf only: no attribute, signature or secret",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.07",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "the wallet keeps secrets in 0600 files under a 0700 directory and refuses group/other-readable files",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F6.08",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "the prover writes no input or witness file (in-memory fullProve only)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F7.01",
+      "file": "floor07-logs.test.js",
+      "floors": [
+        7
+      ],
+      "title": "issuer log: no secret, salt, commitment, attrHash/leaf, signature or admin token",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F7.02",
+      "file": "floor07-logs.test.js",
+      "floors": [
+        7
+      ],
+      "title": "issuer log lines carry only the documented fields (no attribute keys, no bodies, no headers)",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F7.03",
+      "file": "floor07-logs.test.js",
+      "floors": [
+        7
+      ],
+      "title": "admin listing, tree and metrics responses carry no attribute, commitment or signature",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F7.04",
+      "file": "floor07-logs.test.js",
+      "floors": [
+        7
+      ],
+      "title": "client errors and messages do not echo secrets or issuer free text",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F7.05",
+      "file": "floor07-logs.test.js",
+      "floors": [
+        7
+      ],
+      "title": "gateway log and state hold no username, email, role, department or clearance",
+      "pending": "gateway (P3) not in this repository",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F8.01",
+      "file": "floor08-poseidon.test.js",
+      "floors": [
+        8
+      ],
+      "title": "lib Poseidon matches published circomlib/circomlibjs reference outputs",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F8.02",
+      "file": "floor08-poseidon.test.js",
+      "floors": [
+        8
+      ],
+      "title": "issuer-signed leaf == lib attrHash(client commitment) == registry leaf, and the issuer's signature verifies",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F8.03",
+      "file": "floor08-poseidon.test.js",
+      "floors": [
+        8
+      ],
+      "title": "the committed circuit accepts the client-built input and recomputes the registry root and the lib nullifier",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F8.04",
+      "file": "floor08-poseidon.test.js",
+      "floors": [
+        8
+      ],
+      "title": "one encoder: issuer and client import circuits/lib, and carry no Poseidon of their own",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F8.05",
+      "file": "floor08-poseidon.test.js",
+      "floors": [
+        8
+      ],
+      "title": "identity's cross-check suite (G1-S1-IDEN-013) passes",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.01",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "no tracked file under the issuer key directory, no key/env/wallet file names",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.02",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "no tracked text file contains PEM private-key material or is a bare 32-byte hex key",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.03",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "no tracked JSON is a wallet credential; any JSON holding credentialSecret is TEST-ONLY at top level",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.04",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "the secrets locations are ignored by git",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.05",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "the issuer generates its key once, 0600 in a 0700 dir, refuses a readable key, and never uses the TEST-ONLY seed",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F9.06",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "committed proving artefacts are labelled DEV-ONLY with their limitations",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F10.01",
+      "file": "floor10-append-only.test.js",
+      "floors": [
+        10
+      ],
+      "title": "every manifest ID is still a test in its recorded file",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F10.02",
+      "file": "floor10-append-only.test.js",
+      "floors": [
+        10
+      ],
+      "title": "every test in the suite is registered in the manifest, with one entry per ID",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F10.03",
+      "file": "floor10-append-only.test.js",
+      "floors": [
+        10
+      ],
+      "title": "the manifest at HEAD is a subset of the working manifest",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F10.04",
+      "file": "floor10-append-only.test.js",
+      "floors": [
+        10
+      ],
+      "title": "git history: no tests/safety file was ever deleted or renamed away",
+      "added": "G1-S1-SAFETY-020"
+    },
+    {
+      "id": "F1.09",
+      "file": "floor01-constraints.test.js",
+      "floors": [
+        1
+      ],
+      "title": "one report covers the whole v4 closure: every included project file is a mutation target, no exceptions (eddsa_verifier.circom included)",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F5.08",
+      "file": "floor04-05-replay-nullifier.test.js",
+      "floors": [
+        5
+      ],
+      "title": "one person cannot hold two live credentials (else N credentials = N nullifiers per epoch): enrolment_pending / employee_has_credential",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F6.09",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6
+      ],
+      "title": "SR-09: a corrupt pin file fails closed (PINS_CORRUPT) before the enrolment request is sent",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F6.10",
+      "file": "floor06-private-inputs.test.js",
+      "floors": [
+        6,
+        7
+      ],
+      "title": "issuer enrolment state: after redemption no attribute, code or commitment is kept, file 0600",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F9.07",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "SR-10: the issuer key directory is created 0700 past any umask, and a group/other-accessible one is refused with no key written",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F9.08",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9,
+        3
+      ],
+      "title": "SR-04: without ISSUER_ADMIN_TOKEN the issuer does not start (no key created, no state written) unless insecure-dev is exactly on",
+      "added": "G1-S1-SAFETY-021"
+    },
+    {
+      "id": "F9.09",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9,
+        2
+      ],
+      "title": "committed keys record a public phase 1 with provenance, and stay DEV-ONLY while phase 2 is single-party",
+      "added": "G1-gate-floors"
+    },
+    {
+      "id": "F9.10",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9,
+        2
+      ],
+      "title": "committed artefacts match their manifests, and the v4 fixtures verify only under the current vkey",
+      "added": "G1-gate-floors"
+    },
+    {
+      "id": "F9.11",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9,
+        3
+      ],
+      "title": "SR-20: only a boolean true turns insecure-dev on in buildServer; truthy strings/numbers keep the start refused",
+      "added": "G1-gate-floors"
+    },
+    {
+      "id": "F9.12",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "a key's status never outruns its provenance: single-party => DEV-ONLY, full multi-party evidence => DEMO-ONLY (never production), fixtures say the same",
+      "added": "G2-S1-SAFETY-022"
+    }
+  ]
+}

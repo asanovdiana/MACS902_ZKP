@@ -1,0 +1,50 @@
+[
+  {
+    "id": "f-arch-001",
+    "name": "gateway-architecture-v3.md",
+    "category": "Architecture",
+    "sizeBytes": 261,
+    "mime": "text/markdown",
+    "owner": "Platform Team",
+    "classification": "Internal",
+    "updated": "2026-10-30",
+    "storedAs": "gateway-architecture-v3.md",
+    "description": "Reference architecture for the internal access gateway."
+  },
+  {
+    "id": "f-ops-002",
+    "name": "capacity-plan-q4.csv",
+    "category": "Operations",
+    "sizeBytes": 110,
+    "mime": "text/csv",
+    "owner": "SRE Guild",
+    "classification": "Confidential",
+    "updated": "2026-10-21",
+    "storedAs": "capacity-plan-q4.csv",
+    "description": "Projected compute and storage capacity for Q4."
+  },
+  {
+    "id": "f-sec-003",
+    "name": "pentest-scope-2026.txt",
+    "category": "Security",
+    "sizeBytes": 175,
+    "mime": "text/plain",
+    "owner": "Security Engineering",
+    "classification": "Confidential",
+    "updated": "2026-09-12",
+    "storedAs": "pentest-scope-2026.txt",
+    "description": "Scope and rules of engagement for the annual penetration test."
+  },
+  {
+    "id": "f-eng-004",
+    "name": "build-farm-runbook.md",
+    "category": "Engineering",
+    "sizeBytes": 165,
+    "mime": "text/markdown",
+    "owner": "Developer Productivity",
+    "classification": "Internal",
+    "updated": "2026-11-01",
+    "storedAs": "build-farm-runbook.md",
+    "description": "How to drain, patch and re-enable build runners."
+  }
+]

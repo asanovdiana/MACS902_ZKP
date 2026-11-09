@@ -1,0 +1,207 @@
+{
+  "realm": "zkag",
+  "enabled": true,
+  "displayName": "ZK Access Gate \u2014 SSO baseline (DEV)",
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "engineer",
+        "description": "engineer role (Project Scope M1)"
+      },
+      {
+        "name": "admin",
+        "description": "admin role (Project Scope M1)"
+      },
+      {
+        "name": "contractor",
+        "description": "contractor role (Project Scope M1)"
+      },
+      {
+        "name": "finance",
+        "description": "finance role (Project Scope M1)"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "zkag-sso-baseline",
+      "name": "ZK Access Gate SSO baseline",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-sso-baseline-client-secret-change-me",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/sso/callback",
+        "http://127.0.0.1:5173/sso/callback",
+        "http://localhost:8088/sso/callback"
+      ],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8088"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*##http://localhost:8088/*"
+      },
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "clearance",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "clearance",
+            "claim.name": "clearance",
+            "jsonType.label": "int",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "department",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "department",
+            "claim.name": "department",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "device_compliant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "device_compliant",
+            "claim.name": "device_compliant",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-zkag-sso-baseline",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "zkag-sso-baseline",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Anders",
+      "email": "alice@northwind.example",
+      "attributes": {
+        "department": ["engineering"],
+        "clearance": ["2"],
+        "device_compliant": ["true"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["engineer"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Brennan",
+      "email": "bob@northwind.example",
+      "attributes": {
+        "department": ["operations"],
+        "clearance": ["1"],
+        "device_compliant": ["true"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["contractor"]
+    },
+    {
+      "username": "carol",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Carol",
+      "lastName": "Castillo",
+      "email": "carol@northwind.example",
+      "attributes": {
+        "department": ["operations"],
+        "clearance": ["3"],
+        "device_compliant": ["true"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "carol-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}], \"unmanagedAttributePolicy\": \"ADMIN_VIEW\"}"
+          ]
+        }
+      }
+    ]
+  }
+}

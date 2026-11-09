@@ -1,0 +1,4 @@
+cluster,cpu_cores,memory_gib,storage_tib,quarter
+build,512,2048,40,Q4
+web,256,1024,12,Q4
+data,384,3072,220,Q4

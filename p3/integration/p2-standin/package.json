@@ -1,0 +1,27 @@
+{
+  "name": "@zkag/p2-standin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DIAGNOSTIC STAND-IN for P2 (registry + user prover) driving the real P1 v3 circuit. Not the P2 deliverable; never issues credentials.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "fixtures": "tsx src/fixtures-cli.ts",
+    "audit": "tsx src/audit.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zkag/shared": "0.1.0",
+    "circomlibjs": "0.1.7",
+    "express": "^4.21.2",
+    "snarkjs": "0.7.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
+  }
+}

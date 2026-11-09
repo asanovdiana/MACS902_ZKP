@@ -1,0 +1,84 @@
+{
+  "$comment": "PROPOSED public-signal layout for the M3 access circuit. snarkjs emits OUTPUTS first, then PUBLIC INPUTS in declaration order. The gateway profile 'zkag-access-v1' (gateway/src/verification/profiles.ts) consumes exactly this order. Not confirmed by P1.",
+  "circuitId": "zkag_access_v1",
+  "status": "proposed",
+  "signals": [
+    {
+      "index": 0,
+      "name": "nullifier",
+      "kind": "output",
+      "definition": "Poseidon(user_secret, resource_id, epoch)"
+    },
+    {
+      "index": 1,
+      "name": "root",
+      "kind": "public input",
+      "definition": "Merkle root of the credential registry (depth 16)"
+    },
+    {
+      "index": 2,
+      "name": "nonce",
+      "kind": "public input",
+      "definition": "Gateway challenge nonce; must be constrained (e.g. nonceSquare <== nonce * nonce) so it cannot be optimised away"
+    },
+    {
+      "index": 3,
+      "name": "resourceId",
+      "kind": "public input",
+      "definition": "wiki=1, file-share=2, admin-panel=3; used in the nullifier"
+    },
+    {
+      "index": 4,
+      "name": "epoch",
+      "kind": "public input",
+      "definition": "floor(unix_seconds / EPOCH_SECONDS) as issued in the challenge"
+    },
+    {
+      "index": 5,
+      "name": "roleMask",
+      "kind": "public input",
+      "definition": "bit i set ⇒ role code i allowed (engineer=0, admin=1, contractor=2, finance=3)"
+    },
+    {
+      "index": 6,
+      "name": "deptMask",
+      "kind": "public input",
+      "definition": "bit i set ⇒ department code i allowed (all four = 15)"
+    },
+    {
+      "index": 7,
+      "name": "minClearance",
+      "kind": "public input",
+      "definition": "clearance >= minClearance (GreaterEqThan, 2-bit range-checked)"
+    },
+    {
+      "index": 8,
+      "name": "requireDevice",
+      "kind": "public input",
+      "definition": "if 1 then deviceCompliant === 1"
+    },
+    {
+      "index": 9,
+      "name": "currentTime",
+      "kind": "public input",
+      "definition": "expiry > currentTime (gateway checks currentTime within ±CLOCK_SKEW_SECONDS)"
+    },
+    {
+      "index": 10,
+      "name": "issuerAx",
+      "kind": "public input",
+      "definition": "EdDSA issuer public key x; gateway compares with TRUSTED_ISSUER_AX"
+    },
+    {
+      "index": 11,
+      "name": "issuerAy",
+      "kind": "public input",
+      "definition": "EdDSA issuer public key y; gateway compares with TRUSTED_ISSUER_AY"
+    }
+  ],
+  "policyParameters": {
+    "wiki": { "roleMask": "15", "deptMask": "15", "minClearance": "0", "requireDevice": "1" },
+    "file-share": { "roleMask": "3", "deptMask": "15", "minClearance": "2", "requireDevice": "0" },
+    "admin-panel": { "roleMask": "2", "deptMask": "15", "minClearance": "3", "requireDevice": "1" }
+  }
+}

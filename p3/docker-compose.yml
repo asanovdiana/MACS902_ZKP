@@ -1,0 +1,95 @@
+# ZK Access Gate — local demonstration stack.
+# Prerequisite (host): `make p1-build` to compile the unmodified P1 circuit into ./artifacts.
+# Browser entry point: http://localhost:8088  · Keycloak: http://localhost:8080
+name: zk-access-gate
+
+x-dev-secrets:
+  &dev-secrets # DEVELOPMENT VALUES ONLY — override via .env for anything beyond a laptop demo.
+  OPERATOR_TOKEN: ${OPERATOR_TOKEN:-dev-operator-token-change-me-000000}
+  REGISTRY_ADMIN_TOKEN: ${REGISTRY_ADMIN_TOKEN:-dev-registry-admin-token-change-me-0000}
+  ASSERTION_SECRET_ZK: ${ASSERTION_SECRET_ZK:-dev-zk-gateway-assertion-secret-change-me-0000}
+  ASSERTION_SECRET_SSO: ${ASSERTION_SECRET_SSO:-dev-sso-baseline-assertion-secret-change-me-000}
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin-dev-only}
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
+      KC_HTTP_ENABLED: 'true'
+      KC_HEALTH_ENABLED: 'true'
+    volumes:
+      - ./baseline/keycloak/realm-zkag.json:/opt/keycloak/data/import/realm-zkag.json:ro
+    ports: ['8080:8080']
+    networks: [edge]
+
+  services:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: services }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      SERVICES_HOST: 0.0.0.0
+    networks: [internal] # no published ports: reachable only by the two front doors
+
+  p2-standin:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: p2-standin }
+    environment:
+      <<: *dev-secrets
+      STANDIN_HOST: 0.0.0.0
+      P1_ARTIFACT_DIR: /app/artifacts/p1-integrated-v3
+      P1_FIXTURE_FILE: /app/artifacts/fixtures/p1-personas.json
+    volumes:
+      - ./artifacts:/app/artifacts
+    networks: [edge]
+
+  gateway:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: gateway }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      GATEWAY_HOST: 0.0.0.0
+      ZK_PROFILE: ${ZK_PROFILE:-p1-integrated-v3}
+      REGISTRY_URL: ${REGISTRY_URL:-http://p2-standin:4600}
+      UPSTREAM_WIKI_URL: http://services:4101
+      UPSTREAM_FILE_SHARE_URL: http://services:4102
+      UPSTREAM_ADMIN_PANEL_URL: http://services:4103
+      SSO_GATEWAY_URL: http://sso-gateway:4200
+      TRUST_PROXY: uniquelocal
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./bench/results:/app/bench/results:ro
+      - ./evidence:/app/evidence:ro
+    depends_on:
+      { services: { condition: service_healthy }, p2-standin: { condition: service_healthy } }
+    networks: [edge, internal]
+
+  sso-gateway:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: sso-gateway }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      SSO_HOST: 0.0.0.0
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dev-sso-baseline-client-secret-change-me}
+      OIDC_REDIRECT_URI: http://localhost:8088/sso/callback
+      POST_LOGOUT_REDIRECT_URI: http://localhost:8088/compare
+      UPSTREAM_WIKI_URL: http://services:4101
+      UPSTREAM_FILE_SHARE_URL: http://services:4102
+      UPSTREAM_ADMIN_PANEL_URL: http://services:4103
+    depends_on:
+      { services: { condition: service_healthy }, keycloak: { condition: service_started } }
+    networks: [edge, internal]
+
+  ui:
+    build: { context: ., dockerfile: docker/ui.Dockerfile }
+    ports: ['8088:8088']
+    depends_on: [gateway, sso-gateway, p2-standin]
+    networks: [edge]
+
+networks:
+  edge: {}
+  internal: { internal: true }

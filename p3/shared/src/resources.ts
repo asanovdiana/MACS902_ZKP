@@ -1,7 +1,7 @@
 /**
  * Protected resources. The gateway and the SSO baseline protect the same three services.
- * `fieldId` is the PROPOSED numeric resource identifier used as a circuit public input
- * (see contracts/public-signals.zkag-access-v1.json). It is not confirmed by P1.
+ * `fieldId` is the circuit's `resourceId` public input (team docs/CONTRACTS.md, access.public_signals v4:
+ * 1 wiki, 2 file share, 3 admin panel).
  */
 export const RESOURCE_IDS = ['wiki', 'file-share', 'admin-panel'] as const;
 export type ResourceId = (typeof RESOURCE_IDS)[number];

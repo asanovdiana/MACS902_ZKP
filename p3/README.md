@@ -2,15 +2,20 @@
 
 A zero-trust gateway that admits employees to internal services by verifying a **zero-knowledge proof** that they satisfy the service policy, with no identity sent to the gateway. A Keycloak SSO front door guards the same services for comparison.
 
-P1's circuits live at the repository root (`../circuits`) and are **not modified** by anything in `p3/`.
+P3 lives in `p3/`. It integrates the team's components **unchanged**:
 
-> **Current integration state.** The P1 circuit (`integrated_access_v3`) compiles and produces real Groth16 proofs that this gateway verifies with snarkjs. An executed audit (`npm run p1:audit`) shows that the circuit **does not bind attributes or the issuer key, and has no nonce, resource, epoch or nullifier**. The gateway therefore runs it in **diagnostic mode**: it reports proof validity and **never grants access**. Real authorization switches on once the circuit provides those guarantees (`contracts/public-signals.zkag-access-v1.json`).
+- the circuit and keys in `../circuits`
+- the issuer and registry in `../issuer`
+- the client prover and attack suite in `../client`
+
+> **Integration state.** The gateway runs the team circuit `integrated_access_v4` (depth 16, 12 public signals) and enforces all eight gateway obligations of `docs/CONTRACTS.md` (`access.public_signals v4`): pinned issuer key, insert-only root staleness rule, policy and `resourceId`, challenge `now`/`epoch`, single-use 128-bit nonce, and `(nullifier, epoch)` rate limit. Real access is granted end to end. The team's committed keys are **DEV-ONLY** (single-party phase 2), so the gateway accepts them only with `ALLOW_DEMO_KEYS=true`. The UI says so, and production mode refuses it.
 
 ```mermaid
 flowchart LR
   UI[React UI] -->|challenge / verify| GW[ZK Gateway]
-  UI -->|credential + challenge| PR[User-side prover]
-  GW -->|current root| REG[P2 Registry]
+  UI -->|persona + challenge| PR[Wallet prover · team client]
+  PR -->|Merkle path| ISS[Team issuer / registry]
+  GW -->|root + history| ISS
   GW -->|assertion| SVC[Wiki · File Share · Admin Panel]
   UI -->|OIDC + PKCE| SSO[SSO front door] --> KC[Keycloak]
   SSO -->|assertion| SVC
@@ -19,50 +24,51 @@ flowchart LR
 ## Quick start (local)
 
 ```bash
+# once, at the repository root (team dependencies)
+npm ci && npm ci --prefix issuer
+# P3
 cd p3
 npm install
-npm run p1:build        # compile P1's circuit (from ../circuits) + DEV-ONLY Groth16 setup
-npm run p1:audit        # executed security audit → evidence/p1-audit-report.json
-npm run p1:fixtures     # diagnostic personas for the P2 stand-in
-npm run dev             # gateway :4000, services :4101-4103, SSO :4200, P2 stand-in :4600, UI :5173
+npm run v4:setup   # starts the team issuer, enrols Alice/Bob/Carol into wallets, pins the issuer key
+npm run dev        # services, issuer :8100, gateway :4000, wallet prover :4700, SSO :4200, UI :5173
 ```
 
-Open **http://localhost:5173** and sign in with `OPERATOR_TOKEN` from `.env.example` (development value).
+Open **http://localhost:5173** and sign in with `OPERATOR_TOKEN` from `.env.example` (development value). For Keycloak, also run `docker compose up keycloak`. The demo users are `alice`, `bob` and `carol`; their development passwords are in `baseline/keycloak/realm-zkag.json`.
 
-**Keycloak (SSO baseline):** with Docker running, start `docker compose up keycloak` alongside `npm run dev`. Demo users: `alice`, `bob`, `carol` (development passwords are in `baseline/keycloak/realm-zkag.json`).
+`npm run dev:v3` runs the earlier **diagnostic** profile instead: the P1 v3 circuit plus the P3 stand-in. It needs `npm run p1:build` and never grants access.
 
-**Full Docker stack:** `npm run p1:build && npm run p1:fixtures && docker compose up --build` → UI at http://localhost:8088.
+## Docker (full stack)
+
+```bash
+cd p3 && docker compose up --build   # UI http://localhost:8088 · Keycloak http://localhost:8080
+```
+
+Builds from the repository root. A one-shot `setup` container enrols the personas and pins the issuer key before the gateway starts.
 
 ## Commands
 
-| Command                                 | Does                                                         |
-| --------------------------------------- | ------------------------------------------------------------ |
-| `npm run build`                         | TypeScript builds + Vite production build                    |
-| `npm run typecheck`                     | strict type checks, all workspaces                           |
-| `npm run lint` / `npm run format:check` | ESLint / Prettier                                            |
-| `npm test`                              | Vitest unit, integration and security suites                 |
-| `npm run test:e2e`                      | Playwright (with `npm run dev` running)                      |
-| `npm run bench`                         | 100-iteration benchmarks → `bench/results/latest.{json,csv}` |
-| `make demo` / `make reset`              | Docker demo / reset demo state                               |
+| Command                                                       | Does                                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `npm run v4:setup`                                            | team issuer + persona wallets + pinned issuer key (`.v4-demo/`, git-ignored)   |
+| `npm run build`                                               | TypeScript builds + Vite production build                                      |
+| `npm run typecheck` / `npm run lint` / `npm run format:check` | quality gates                                                                  |
+| `npm test`                                                    | Vitest: unit, integration, security, **team issuer + attack suite end to end** |
+| `npm run test:e2e`                                            | Playwright against a running stack (`E2E_BASE_URL`, default :5173)             |
+| `npm run bench`                                               | 100-iteration benchmarks (v4 and v3) → `bench/results/latest.{json,csv}`       |
+| `npm run p1:build` / `npm run p1:audit`                       | v3 diagnostic artifacts and audit (historical)                                 |
 
 ## Layout (`p3/`)
 
-| Path                      | Contents                                                                                                          |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `gateway/`                | Express gateway: challenges, Groth16 verification, sessions, reverse proxy, events, admin                         |
-| `services/`               | Wiki, File Share, Admin Panel (reachable only through a front door)                                               |
-| `baseline/`               | Keycloak realm + OIDC (Authorization Code + PKCE) front door                                                      |
-| `ui/`                     | React demo: User Portal, Gateway Live View, SSO vs ZK, Admin Console, Attack Lab, Performance, Integration Status |
-| `integration/p2-standin/` | **Diagnostic** stand-in for P2 (registry + prover over the real P1 circuit) and the P1 audit                      |
-| `contracts/`              | Proposed OpenAPI (P2 registry/prover, gateway) and public-signal layouts                                          |
-| `bench/`                  | Benchmark harness and measured results                                                                            |
-| `shared/`                 | Policies, field encoding, events, front-door assertions, proxy hardening                                          |
-
-## Integration contracts
-
-- **P1:** `contracts/public-signals.zkag-access-v1.json` and `contracts/artifact-manifest.schema.json`
-- **P2:** `contracts/p2-registry.openapi.yaml` (language independent; FastAPI is fine)
+| Path                                                     | Contents                                                                                                                                              |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gateway/`                                               | Express gateway: challenges, Groth16 verification, contract obligations, sessions, proxy, events, admin; `/challenge` + `/access` for the team client |
+| `services/`                                              | Wiki, File Share, Admin Panel (reachable only through a front door)                                                                                   |
+| `baseline/`                                              | Keycloak realm + OIDC (Authorization Code + PKCE) front door                                                                                          |
+| `ui/`                                                    | React demo: User Portal, Gateway Live View, SSO vs ZK, Admin Console, Attack Lab, Performance, Integration Status                                     |
+| `integration/wallet-prover/`                             | User-side HTTP adapter over the team client (wallets, `prove`) and attack suite                                                                       |
+| `integration/p2-standin/`                                | Diagnostic stand-in for the v3 profile only                                                                                                           |
+| `bench/`, `contracts/`, `shared/`, `docker/`, `scripts/` | benchmarks, P3 API/manifest contracts, shared code, images, setup                                                                                     |
 
 ## Environment variables
 
-All variables are documented in [.env.example](.env.example). With `NODE_ENV=production`, every component refuses development secrets, and the gateway refuses non-`Secure` cookies.
+All variables are documented in [.env.example](.env.example). With `NODE_ENV=production`, every component refuses development secrets; the gateway also refuses non-`Secure` cookies and `ALLOW_DEMO_KEYS`.

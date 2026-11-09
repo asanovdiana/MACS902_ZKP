@@ -144,9 +144,47 @@ export const prover = {
         nonce: challenge.nonce,
         resourceField: challenge.resourceField,
         epoch: challenge.epoch,
+        now: challenge.now,
+        policy: {
+          roleMask: challenge.policy.roleMask,
+          deptMask: challenge.policy.deptMask,
+          minClearance: challenge.policy.minClearance,
+          requireDevice: challenge.policy.requireDevice,
+        },
       },
     }),
+  /** Team Attack Lab suite (client/attacks), run by the user-side adapter against the gateway. */
+  attacks: () =>
+    json<{ ids: string[]; attacks: Array<{ id: string; title?: string }> }>(
+      'GET',
+      '/p2/v1/attacks',
+    ),
+  runAttack: (id: string) =>
+    json<TeamAttackRun>('POST', `/p2/v1/attacks/${encodeURIComponent(id)}/run`, {}),
 };
+
+export interface TeamAttackStep {
+  label: string;
+  expect: {
+    outcome: 'admit' | 'deny';
+    status: number;
+    code: string | null;
+    obligation: number | null;
+  };
+  actual: { status: number | null; outcome: string; code: string | null; error?: string } | null;
+  skipped?: boolean;
+  pass: boolean;
+}
+export interface TeamAttackRun {
+  id: string;
+  title: string;
+  scope?: string;
+  display?: Array<{ code: string; text: string }>;
+  local?: Array<{ stage: string; refused: boolean; code: string; reasons?: string[] }>;
+  steps: TeamAttackStep[];
+  pass: boolean;
+  ms: number;
+}
 
 export interface RegistryView {
   current: {
@@ -159,7 +197,13 @@ export interface RegistryView {
   leaves?: {
     treeDepth?: number;
     root?: string;
-    leaves?: Array<{ index: number; credentialId: string | null; status: string; leaf: string }>;
+    leaves?: Array<{
+      index: number;
+      credentialId: string | null;
+      label?: string | null;
+      status: string;
+      leaf: string;
+    }>;
     unavailable?: boolean;
   };
   history?: {

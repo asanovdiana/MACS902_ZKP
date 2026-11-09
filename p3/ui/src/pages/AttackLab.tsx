@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { prover } from '../services/api';
+import { TeamAttackCard, type TeamResult } from '../features/attack-lab/TeamAttackCard';
 import clsx from 'clsx';
 import {
   ChevronDown,
@@ -45,8 +48,17 @@ const verdictStyle: Record<
 
 export function AttackLabPage() {
   const { data: status } = useStatus();
+  const v4 = status?.profile.id === 'integrated-access-v4';
+  const team = useQuery({
+    queryKey: ['team-attacks'],
+    queryFn: prover.attacks,
+    enabled: v4,
+    retry: 0,
+  });
   const [results, setResults] = useState<Record<string, AttackOutcome>>({});
+  const [teamResults, setTeamResults] = useState<Record<string, TeamResult>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const scenarios = SCENARIOS.filter((s) => !v4 || s.group === 'gateway');
 
   const run = async (s: Scenario) => {
     if (!status) return;
@@ -55,20 +67,43 @@ export function AttackLabPage() {
     setResults((prev) => ({ ...prev, [s.id]: r }));
     setRunning(null);
   };
+  const runTeam = async (id: string) => {
+    setRunning(`team:${id}`);
+    try {
+      const r = await prover.runAttack(id);
+      setTeamResults((p) => ({ ...p, [id]: { ok: true, run: r } }));
+    } catch (e) {
+      setTeamResults((p) => ({ ...p, [id]: { ok: false, error: (e as Error).message } }));
+    }
+    setRunning(null);
+  };
   const runAll = async () => {
-    for (const s of SCENARIOS) await run(s);
+    if (v4) for (const id of team.data?.ids ?? []) await runTeam(id);
+    for (const s of scenarios) await run(s);
   };
   const counts = Object.values(results).reduce(
     (a, r) => ({ ...a, [r.verdict]: (a[r.verdict] ?? 0) + 1 }),
     {} as Record<Verdict, number>,
   );
+  for (const r of Object.values(teamResults)) {
+    const v: Verdict = r.ok ? (r.run.pass ? 'PASS' : 'FAIL') : 'BLOCKED';
+    counts[v] = (counts[v] ?? 0) + 1;
+  }
+  const titleOf = (id: string) => {
+    const a = team.data?.attacks.find((x) => x.id === id);
+    return a?.title ?? id;
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="Screen 5 · Attack Lab"
         title="Attacks that must fail"
-        description="Each scenario sends real requests to the gateway and the user-side prover. Verdicts are computed from the actual responses and from the guarantees the active circuit really provides — nothing is hard-coded."
+        description={
+          v4
+            ? "The team's attack suite builds each attack with REAL Groth16 proofs from freshly enrolled personas and sends it to this gateway. PASS means the gateway gave the team's expected outcome and reason code for every step — nothing is hard-coded."
+            : 'Each scenario sends real requests to the gateway and the user-side prover. Verdicts are computed from the actual responses and from the guarantees the active circuit really provides — nothing is hard-coded.'
+        }
         actions={
           <Button onClick={() => void runAll()} disabled={!!running || !status}>
             <PlayCircle className="h-4 w-4" /> Run all
@@ -86,34 +121,65 @@ export function AttackLabPage() {
           label="Fail"
           value={counts.FAIL ?? 0}
           tone="bad"
-          hint="security property does not hold"
+          hint="gateway answer differs from the expected one"
         />
         <Stat
           label="Blocked"
           value={counts.BLOCKED ?? 0}
           tone="warn"
-          hint="needs P1/P2 capability"
+          hint="could not be executed"
         />
       </div>
-      {(['scope', 'gateway'] as const).map((g) => (
-        <section key={g} className="mb-8">
+      {v4 && (
+        <section className="mb-8">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-            {g === 'scope' ? 'Project Scope attack scenarios' : 'Gateway hardening checks'}
+            Project Scope attack scenarios · team suite (client/attacks)
           </h2>
+          {team.isError && (
+            <p className="text-sm text-warn">
+              Team attack suite unavailable: start the wallet prover (npm run dev).
+            </p>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
-            {SCENARIOS.filter((s) => s.group === g).map((s) => (
-              <AttackCard
-                key={s.id}
-                s={s}
-                result={results[s.id]}
-                running={running === s.id}
-                disabled={!!running || !status}
-                onRun={() => void run(s)}
+            {(team.data?.ids ?? []).map((id) => (
+              <TeamAttackCard
+                key={id}
+                id={id}
+                title={titleOf(id)}
+                result={teamResults[id]}
+                running={running === `team:${id}`}
+                disabled={!!running}
+                onRun={() => void runTeam(id)}
               />
             ))}
           </div>
         </section>
-      ))}
+      )}
+      {(['scope', 'gateway'] as const)
+        .filter((g) => !v4 || g === 'gateway')
+        .map((g) => (
+          <section key={g} className="mb-8">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
+              {g === 'scope'
+                ? 'Project Scope attack scenarios (P1 v3 diagnostic)'
+                : 'Gateway hardening checks'}
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {scenarios
+                .filter((s) => s.group === g)
+                .map((s) => (
+                  <AttackCard
+                    key={s.id}
+                    s={s}
+                    result={results[s.id]}
+                    running={running === s.id}
+                    disabled={!!running || !status}
+                    onRun={() => void run(s)}
+                  />
+                ))}
+            </div>
+          </section>
+        ))}
     </>
   );
 }

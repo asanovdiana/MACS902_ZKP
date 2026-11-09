@@ -61,6 +61,17 @@ export function IntegrationPage() {
               <KV k="version" v={s.artifacts.version ?? '—'} mono />
               <KV k="security status" v={s.artifacts.securityStatus ?? '—'} tone="warn" />
               <KV
+                k="key trust"
+                v={s.artifacts.trust ?? '—'}
+                tone={s.artifacts.trust === 'reviewed' ? 'ok' : 'warn'}
+              />
+              <KV k="registry API" v={s.settings.registryApi ?? '—'} mono />
+              <KV
+                k="issuer key pinned"
+                v={s.settings.issuerPinned ? 'yes' : 'no'}
+                tone={s.settings.issuerPinned ? 'ok' : 'bad'}
+              />
+              <KV
                 k="security review"
                 v={s.artifacts.reviewed ? 'accepted' : 'not accepted'}
                 tone={s.artifacts.reviewed ? 'ok' : 'warn'}

@@ -33,7 +33,10 @@ export function serviceProxyRoutes(ctx: GatewayContext) {
     // Revocation: re-check the authoritative root (bounded by ROOT_CACHE_MS staleness).
     try {
       const snap = await ctx.registry.getCurrentRoot();
-      if (snap.root !== found.session.root) {
+      if (
+        snap.root !== found.session.root &&
+        !(await ctx.registry.sessionRootValid(found.session.root))
+      ) {
         ctx.sessions.revoke(found.session.id);
         res.append(
           'Set-Cookie',
@@ -42,7 +45,7 @@ export function serviceProxyRoutes(ctx: GatewayContext) {
         res.status(401).json({
           error: {
             code: 'SESSION_REVOKED_ROOT_CHANGED',
-            message: 'registry changed since authorization; prove again',
+            message: 'a credential was revoked since authorization; prove again',
           },
         });
         return null;

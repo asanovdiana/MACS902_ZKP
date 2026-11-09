@@ -4,10 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 
 const GATEWAY = process.env.VITE_GATEWAY_URL ?? 'http://127.0.0.1:4000';
 const SSO = process.env.VITE_SSO_URL ?? 'http://127.0.0.1:4200';
-const PROVER = process.env.VITE_PROVER_URL ?? 'http://127.0.0.1:4600';
+const PROVER = process.env.VITE_PROVER_URL ?? 'http://127.0.0.1:4700';
 
 // The browser only ever talks to this origin. The dev server forwards:
-//   /api, /svc  → ZK gateway        /sso → SSO baseline        /p2 → user-side prover (P2 or stand-in)
+//   /api, /svc  → ZK gateway   /sso → SSO baseline   /p2 → user-side prover (team wallet prover; v3 stand-in for dev:v3)
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {

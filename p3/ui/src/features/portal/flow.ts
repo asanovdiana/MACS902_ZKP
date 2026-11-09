@@ -169,6 +169,7 @@ export async function runSimulatedFlow(resource: ResourceId, onStep?: OnStep): P
       body: {
         decision: 'granted',
         reason: 'SIMULATED',
+        code: null,
         message: 'Simulated outcome for UI development — not a real verification.',
         correlationId: 'simulated',
         challengeId: 'simulated',

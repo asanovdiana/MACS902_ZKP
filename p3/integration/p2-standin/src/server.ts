@@ -42,6 +42,8 @@ const proveSchema = z
         nonce: z.string().max(80).optional(),
         resourceField: z.string().max(80).optional(),
         epoch: z.string().max(80).optional(),
+        now: z.string().max(80).optional(),
+        policy: z.record(z.string().max(80)).optional(),
       })
       .strict(),
   })

@@ -3,7 +3,9 @@ info:
   title: ZK Access Gate — P2 Issuer / Registry / Prover contract
   version: 0.1.0-proposed
   description: |
-    STATUS: PROPOSED by P3. Not confirmed by P2. Language independent (P2 may implement it in Python FastAPI).
+    STATUS: SUPERSEDED for the real system by the team contracts (docs/CONTRACTS.md: issuer.api v1/v2,
+    issuer.admin v1.1). This file now only describes the P3 DIAGNOSTIC stand-in used with the P1 v3
+    profile (npm run dev:v3).
     The P3 gateway (`gateway/src/registry/registryClient.ts`) consumes `/v1/registry/root` and the admin
     endpoints. The P3 diagnostic stand-in (`integration/p2-standin`) implements this contract for testing.
 
@@ -118,7 +120,7 @@ components:
           required: [challengeId, profile]
           properties:
             challengeId: { type: string }
-            profile: { type: string, enum: [p1-integrated-v3, zkag-access-v1] }
+            profile: { type: string, enum: [p1-integrated-v3, integrated-access-v4] }
             nonce: { $ref: '#/components/schemas/FieldElement' }
             resourceField: { $ref: '#/components/schemas/FieldElement' }
             epoch: { $ref: '#/components/schemas/FieldElement' }

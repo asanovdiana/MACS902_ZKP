@@ -1,0 +1,11 @@
+{
+  "name": "zk-access-gate-safety",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZK Access Gate floor test tier (floors 1-10). Append-only (floor 10).",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"*.test.js\""
+  },
+  "engines": { "node": ">=20" },
+  "license": "ISC"
+}

@@ -1,0 +1,320 @@
+{
+  "TEST_ONLY": "TEST-ONLY fixtures built from circuits/test/vectors/v4. Proofs are valid under circuits/setup/integrated_access_v4.verification_key.json, a DEV-ONLY / DEMO-ONLY key (phase 1 PSE ppot 0080; single-party phase 2, so whoever ran setup could forge proofs). Never use outside tests.",
+  "circuit": "circuits/integrated_access_v4.circom",
+  "setup_manifest": "circuits/setup/integrated_access_v4.manifest.json",
+  "verification_key": "circuits/setup/integrated_access_v4.verification_key.json",
+  "verification_key_sha256": "ccfe7a47bdbc822604e0e8d6303e374dba9ff0f79b21483ab67504428de80c9a",
+  "zkey_sha256": "08ea2e979593146d3914fd8fc24fac20edd37005450babc890f8af9f55a8bbb2",
+  "public_signals": [
+    "nullifier",
+    "root",
+    "issuerAx",
+    "issuerAy",
+    "roleMask",
+    "deptMask",
+    "minClearance",
+    "requireDevice",
+    "now",
+    "nonce",
+    "resourceId",
+    "epoch"
+  ],
+  "context": {
+    "pinned_issuer": {
+      "Ax": "15616845909480741603624208222326852763178947967861069622714432338062874987649",
+      "Ay": "20911115007409111586004452222683859284624412216194384882595037076338416835376"
+    },
+    "root_before_revocation": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+    "root_after_bob_revoked": "6411626588110650090607563312687995755653047128450351574851097810181419796342",
+    "revoked": {
+      "persona": "bob",
+      "leafIndex": 1
+    },
+    "gateway_now": "1794128400",
+    "epoch": "2990214",
+    "nonce_ttl_seconds": 120,
+    "resources": {
+      "wiki": {
+        "name": "wiki",
+        "label": "Wiki",
+        "resourceId": 1,
+        "roleMask": 15,
+        "deptMask": 15,
+        "minClearance": 0,
+        "requireDevice": 1
+      },
+      "file_share": {
+        "name": "file_share",
+        "label": "File Share",
+        "resourceId": 2,
+        "roleMask": 3,
+        "deptMask": 15,
+        "minClearance": 2,
+        "requireDevice": 0
+      },
+      "admin_panel": {
+        "name": "admin_panel",
+        "label": "Admin Panel",
+        "resourceId": 3,
+        "roleMask": 2,
+        "deptMask": 15,
+        "minClearance": 3,
+        "requireDevice": 1
+      }
+    }
+  },
+  "fixtures": {
+    "alice_wiki": {
+      "dir": "alice_wiki",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "188145448239764496473744807162415126743",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "valid",
+      "expect": "accept",
+      "gateway_obligations": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "description": "alice -> wiki: satisfies the policy; fresh nonce issued with the challenge; every obligation passes in gateway_state."
+    },
+    "alice_file_share": {
+      "dir": "alice_file_share",
+      "persona": "alice",
+      "resource": "file_share",
+      "presented_to": "file_share",
+      "nonce": "168531568332009876275665739362109430882",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "valid",
+      "expect": "accept",
+      "gateway_obligations": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "description": "alice -> file_share: satisfies the policy; fresh nonce issued with the challenge; every obligation passes in gateway_state."
+    },
+    "carol_admin_panel": {
+      "dir": "carol_admin_panel",
+      "persona": "carol",
+      "resource": "admin_panel",
+      "presented_to": "admin_panel",
+      "nonce": "268587398119171293183013498300220542411",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "valid",
+      "expect": "accept",
+      "gateway_obligations": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "description": "carol -> admin_panel: satisfies the policy; fresh nonce issued with the challenge; every obligation passes in gateway_state."
+    },
+    "carol_wiki": {
+      "dir": "carol_wiki",
+      "persona": "carol",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "198251671752106877753475318343560992717",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "valid",
+      "expect": "accept",
+      "gateway_obligations": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "description": "carol -> wiki: satisfies the policy; fresh nonce issued with the challenge; every obligation passes in gateway_state."
+    },
+    "bob_wiki": {
+      "dir": "bob_wiki",
+      "persona": "bob",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "166513578064905523649979667990217570730",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "valid",
+      "expect": "accept",
+      "gateway_obligations": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "description": "bob -> wiki: satisfies the policy; fresh nonce issued with the challenge; every obligation passes in gateway_state."
+    },
+    "stale_root_bob_wiki": {
+      "dir": "stale_root_bob_wiki",
+      "persona": "bob",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "279436224569132877812536851222680283176",
+      "gateway_state": {
+        "current_root": "6411626588110650090607563312687995755653047128450351574851097810181419796342",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "reject",
+      "floor": 3,
+      "gateway_obligations": [
+        3
+      ],
+      "description": "Bob -> Wiki proved against root_before_revocation. Bob is then revoked (leaf deleted), so the gateway's current root is root_after_bob_revoked: root is not current. Bob cannot prove against the new root at all."
+    },
+    "forged_issuer_alice_wiki": {
+      "dir": "forged_issuer_alice_wiki",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "179143742006624234586604026629903293741",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "reject",
+      "floor": 2,
+      "gateway_obligations": [
+        2
+      ],
+      "description": "Alice's attributes self-signed by the TEST-ONLY forger key, real root and path. The proof verifies; only the pin of issuerAx/issuerAy to context.pinned_issuer stops it."
+    },
+    "stale_now_alice_wiki": {
+      "dir": "stale_now_alice_wiki",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "84109004402857448023756887111949709154",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "reject",
+      "floor": 2,
+      "gateway_obligations": [
+        5
+      ],
+      "description": "Alice -> Wiki with now (and epoch = floor(now / 600)) 90 days behind the gateway clock, credential unexpired then. An old now would revive an expired credential: now/epoch must equal the challenge the gateway stored with the nonce (skew bound 120 s)."
+    },
+    "same_epoch_a": {
+      "dir": "same_epoch_a",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "62386049442546371548202901545858332427",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "accept",
+      "floor": 5,
+      "gateway_obligations": [
+        7
+      ],
+      "description": "Alice -> Wiki, epoch E, nonce A. Present first: first use of (nullifier, epoch), admitted and recorded."
+    },
+    "same_epoch_b": {
+      "dir": "same_epoch_b",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "wiki",
+      "nonce": "245759646854933460652950023485806389736",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "reject",
+      "floor": 5,
+      "gateway_obligations": [
+        7
+      ],
+      "present_after": [
+        "same_epoch_a"
+      ],
+      "description": "Alice -> Wiki, same resource and epoch, different fresh nonce B: same nullifier as same_epoch_a (and alice_wiki). Present after same_epoch_a: rate-limited."
+    },
+    "wrong_service_alice_wiki_as_admin": {
+      "dir": "wrong_service_alice_wiki_as_admin",
+      "persona": "alice",
+      "resource": "wiki",
+      "presented_to": "admin_panel",
+      "nonce": "13451863422124710791162743700366151522",
+      "gateway_state": {
+        "current_root": "9711370045291508388942588541124239884698838534678974716031229410010025360430",
+        "now": "1794128400",
+        "epoch": "2990214"
+      },
+      "kind": "attack",
+      "expect": "reject",
+      "floor": 2,
+      "gateway_obligations": [
+        4
+      ],
+      "description": "A valid Alice -> Wiki proof presented on a request for Admin Panel: resourceId 1 != 3 and the policy fields (roleMask, minClearance) are Wiki's, not Admin Panel's. Alice cannot prove Admin Panel's policy at all."
+    }
+  },
+  "documented": {
+    "replay": {
+      "reuse": "alice_wiki",
+      "expect": "reject",
+      "floor": 4,
+      "gateway_obligations": [
+        6
+      ],
+      "description": "Present alice_wiki twice: the second presentation reuses a consumed nonce and must be denied. No separate file."
+    },
+    "forged_signature_under_pinned_issuer": {
+      "expect": "no proof exists",
+      "description": "A proof whose issuerAx/issuerAy IS the pinned key but whose credential the issuer never signed cannot be generated (witness generation fails in the EdDSA verifier; circuits/test/v4.test.js). Its gateway-level form is forged_issuer_alice_wiki."
+    }
+  }
+}

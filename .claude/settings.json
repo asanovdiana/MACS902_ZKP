@@ -1,0 +1,78 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(make test:*)",
+      "Bash(scripts/fmt:*)",
+      "Bash(make lint:*)",
+      "Bash(make types:*)",
+      "Bash(npm:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit --only:*)",
+      "Bash(git switch:*)",
+      "Bash(git worktree add:*)",
+      "Bash(git worktree list:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(sed -n:*)"
+      ,"Bash(gh auth status:*)"
+      ,"Bash(gh pr list:*)"
+      ,"Bash(gh pr view:*)"
+      ,"Bash(gh pr diff:*)"
+      ,"Bash(gh pr checks:*)"
+      ,"Bash(gh issue list:*)"
+      ,"Bash(gh issue view:*)"
+      ,"Bash(gh run list:*)"
+      ,"Bash(gh run view:*)"
+      ,"Bash(gh repo view:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Read(./**/.env)",
+      "Edit(./**/.env)",
+      "Read(./secrets/**)",
+      "Edit(./secrets/**)",
+      "Read(./issuer/keys/**)",
+      "Edit(./issuer/keys/**)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/kit.lock.json)",
+      "Edit(./.claude/hooks/**)",
+      "Edit(./.claude/agents/**)",
+      "Bash(rm -rf:*)",
+      "Bash(rm -fr:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git add -A:*)",
+      "Bash(git add .:*)",
+      "Bash(git commit -a:*)",
+      "Bash(git commit -am:*)",
+      "Bash(git commit --all:*)",
+      "Bash(git add --all:*)",
+      "Bash(git add -u:*)",
+      "Bash(git stash:*)",
+      "Bash(docker compose down -v:*)",
+      "Bash(docker compose down --volumes:*)",
+      "Bash(docker-compose down -v:*)",
+      "Bash(git checkout -- .:*)",
+      "Bash(git checkout .:*)",
+      "Bash(git restore .:*)",
+      "Bash(git clean:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git push -d:*)",
+      "Agent(orchestrator)"
+      ,"Bash(glab:*)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  }
+}

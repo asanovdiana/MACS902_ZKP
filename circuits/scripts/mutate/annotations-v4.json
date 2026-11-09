@@ -1,0 +1,40 @@
+{
+  "description": "G1-S1-CIRC-036 notes for `npm run mutate:v4`. No v4 mutant is claimed equivalent. The notes below mark constraints that are REDUNDANT in the composed v4 circuit (another component enforces the same property) but are still KILLED by their own component's standalone test, which is what floor 1 asks for. Review: safety.",
+  "annotations": [
+    {
+      "file": "circuits/components/attribute_hash.circom",
+      "statement": "roleBits.in <== role;",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks role with Num2Bits(2) (and the issuer signs only 0..3). Killed standalone by attribute_hash.test.js."
+    },
+    {
+      "file": "circuits/components/attribute_hash.circom",
+      "statement": "deptBits.in <== dept;",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks dept with Num2Bits(2). Killed standalone by attribute_hash.test.js."
+    },
+    {
+      "file": "circuits/components/attribute_hash.circom",
+      "statement": "clearanceBits.in <== clearance;",
+      "note": "Redundant in v4: AccessPolicyV4 also range-checks clearance with Num2Bits(2). Killed standalone by attribute_hash.test.js."
+    },
+    {
+      "file": "circuits/components/attribute_hash.circom",
+      "statement": "employeeActive * (employeeActive - 1) === 0;",
+      "note": "Redundant in v4: AccessPolicyV4 forces employeeActive === 1 under every policy (ADR 0007). Killed standalone by attribute_hash.test.js."
+    },
+    {
+      "file": "circuits/components/access_policy_v4.circom",
+      "statement": "roleBits.in <== role;",
+      "note": "Redundant in v4 for the RANGE (AttributeHash also has Num2Bits(2) on role), but here the bits are also the mux selectors, so the link is load-bearing. Killed standalone by policy_v4.test.js."
+    },
+    {
+      "file": "circuits/components/access_policy_v4.circom",
+      "statement": "deptBits.in <== dept;",
+      "note": "Redundant in v4 for the RANGE (AttributeHash also has Num2Bits(2) on dept), but the bits are the mux selectors. Killed standalone by policy_v4.test.js."
+    },
+    {
+      "file": "circuits/components/access_policy_v4.circom",
+      "statement": "clearanceBits.in <== clearance;",
+      "note": "Redundant in v4: AttributeHash also range-checks clearance with Num2Bits(2), which already bounds the comparator input. Killed standalone by policy_v4.test.js."
+    }
+  ]
+}

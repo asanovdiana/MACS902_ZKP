@@ -1,0 +1,6 @@
+{
+  "spec": ["circuits/test/**/*.test.js"],
+  "require": ["circuits/test/setup.js"],
+  "timeout": 600000,
+  "recursive": true
+}

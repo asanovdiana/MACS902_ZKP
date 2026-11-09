@@ -1,0 +1,325 @@
+{
+  "attribution": {
+    "mention_assistant_in_commits": true
+  },
+  "critical": [],
+  "floors": [
+    "every circuit constraint has a negative test that fails when the constraint is removed; every <-- is followed by an === that checks it",
+    "no valid proof exists for an unsatisfied policy, a tampered attribute, a forged issuer signature, or an expired credential",
+    "a revoked credential is denied against the current root",
+    "a replayed proof (used or expired nonce) is denied",
+    "the same nullifier twice in one epoch is rate-limited; nullifiers from one user to different services are unlinkable",
+    "private inputs (attributes, issuer signature, Merkle path, user secret) never leave the client; the issuer sees only secret_commitment",
+    "the gateway log and gateway state hold no username, email, role, department or clearance",
+    "circuit, issuer and client use identical Poseidon parameters (cross-check test)",
+    "no plaintext credentials or issuer private keys in the tree",
+    "tests/safety/** is append-only"
+  ],
+  "forge": {
+    "ci": null,
+    "cli": "gh",
+    "exclusive": true,
+    "kind": "github",
+    "mirror": null,
+    "remote": "https://github.com/<team>/<repo>"
+  },
+  "kit_version": "1.10.5",
+  "load_order": [
+    {
+      "mode": "full",
+      "path": "docs/plan/README.md"
+    },
+    {
+      "mode": "sections",
+      "path": "docs/strategy.md",
+      "sections": [
+        "2",
+        "3",
+        "5",
+        "6",
+        "11"
+      ]
+    },
+    {
+      "mode": "full",
+      "path": "docs/decisions.md"
+    },
+    {
+      "mode": "full",
+      "path": "docs/risk-register.md"
+    },
+    {
+      "mode": "on_demand",
+      "path": "docs/design.md"
+    }
+  ],
+  "milestones": {
+    "id_format": "{milestone}-S{sprint}-{OWNER}-{nnn}",
+    "outline": [
+      {
+        "id": "G0",
+        "name": "Foundations: interface contract, toy circuit, Poseidon cross-check"
+      },
+      {
+        "id": "G1",
+        "name": "End-to-end proof verifies (week-4 critical gate)"
+      },
+      {
+        "id": "G2",
+        "name": "Full demo runs on make demo"
+      },
+      {
+        "id": "G3",
+        "name": "Evaluation, report and delivery"
+      }
+    ],
+    "prefix": "G"
+  },
+  "observability": true,
+  "project": {
+    "name": "ZK Access Gate",
+    "slug": "zkgate",
+    "summary": "Zero-trust gateway that admits employees to internal services on a Groth16 proof that their issuer-signed credential is valid, unrevoked and satisfies the resource policy, without the gateway learning who they are."
+  },
+  "rendered_on": "2026-11-02",
+  "roles": [
+    {
+      "description": "Interface contract, ADRs, module boundaries, public-input order.",
+      "handoff_extra": [],
+      "memory": "project",
+      "model": "opus",
+      "name": "architect",
+      "owns": [
+        "docs/adr/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "M3 access circuit, circuit tests (circom_tester), trusted setup, constraint optimisation.",
+      "handoff_extra": [
+        "CONSTRAINTS:",
+        "PUBLIC INPUTS:",
+        "NEGATIVE TESTS:"
+      ],
+      "memory": "project",
+      "model": "opus",
+      "name": "circuits",
+      "owns": [
+        "circuits/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "M1 issuer, M2 Merkle registry + revocation, M4 client prover.",
+      "handoff_extra": [
+        "POSEIDON PARAMS:"
+      ],
+      "memory": "project",
+      "model": "sonnet",
+      "name": "identity",
+      "owns": [
+        "issuer/**",
+        "client/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "M5 verifier gateway (reverse proxy, nonce, root, nullifier, sessions) and the three demo services.",
+      "handoff_extra": [
+        "GATEWAY LOG FIELDS:"
+      ],
+      "memory": "project",
+      "model": "sonnet",
+      "name": "gateway",
+      "owns": [
+        "gateway/**",
+        "services/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "M6 demo UI: User Portal, Gateway Live View, SSO vs ZK split screen, Admin Console, Attack Lab.",
+      "handoff_extra": [],
+      "memory": "project",
+      "model": "sonnet",
+      "name": "frontend",
+      "owns": [
+        "ui/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "Docker Compose, make demo, CI, M7 Keycloak baseline.",
+      "handoff_extra": [
+        "SERVICES:",
+        "RUNBOOK:"
+      ],
+      "memory": "project",
+      "model": "sonnet",
+      "name": "devops",
+      "owns": [
+        "docker/**",
+        "keycloak/**",
+        ".github/**",
+        "scripts/**",
+        "compose.yaml",
+        "Makefile"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "Integration and e2e tiers, M8 benchmarks (median/p95 over 100 runs).",
+      "handoff_extra": [
+        "COVERAGE DELTA:",
+        "BENCH DELTA:"
+      ],
+      "memory": "project",
+      "model": "sonnet",
+      "name": "qa",
+      "owns": [
+        "tests/integration/**",
+        "tests/e2e/**",
+        "bench/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": false
+    },
+    {
+      "description": "Floors, threat model, security test suite and Attack Lab cases.",
+      "handoff_extra": [
+        "FLOOR DELTA:",
+        "VETO:"
+      ],
+      "memory": "project",
+      "model": "opus",
+      "name": "safety",
+      "owns": [
+        "tests/safety/**",
+        "docs/security/**"
+      ],
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Skill",
+        "TodoWrite"
+      ],
+      "veto": true
+    }
+  ],
+  "secrets": [
+    "./.env",
+    "./**/.env",
+    "./secrets/**",
+    "./issuer/keys/**"
+  ],
+  "spine": {
+    "contracts": "docs/CONTRACTS.md",
+    "decisions": "docs/decisions.md",
+    "design": "docs/design.md",
+    "inherited": [
+      "docs/project-scope.md",
+      "docs/technology-explained.md"
+    ],
+    "plan": "docs/plan/README.md",
+    "risks": "docs/risk-register.md",
+    "strategy": "docs/strategy.md"
+  },
+  "test_tiers": {
+    "floor": 95,
+    "integration": 70,
+    "unit": 80
+  },
+  "toolchain": {
+    "format": "scripts/fmt",
+    "lint": "make lint",
+    "pm": "npm",
+    "test": "make test",
+    "types": "make types"
+  },
+  "usage": {
+    "five_hour_pct": 0,
+    "seven_day_pct": 95,
+    "stale_after_s": 900
+  }
+}

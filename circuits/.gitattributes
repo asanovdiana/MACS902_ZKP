@@ -1,0 +1,4 @@
+# Proving keys and witness generators are binary: no text diff, no EOL conversion.
+*.zkey binary
+*.wasm binary
+*.ptau binary

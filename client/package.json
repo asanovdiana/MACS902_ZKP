@@ -1,0 +1,14 @@
+{
+  "name": "zkgate-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZK Access Gate client: wallet, issuer client, prover, CLI (M4)",
+  "main": "src/index.js",
+  "bin": { "zkgate": "bin/zkgate" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "coverage": "npx --yes c8@12 --include \"src/**\" --reporter text-summary --check-coverage --lines 80 node --test --test-concurrency=1 \"test/*.test.js\""
+  },
+  "engines": { "node": ">=20" },
+  "license": "ISC"
+}

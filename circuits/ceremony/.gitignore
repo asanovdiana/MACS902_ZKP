@@ -1,0 +1,10 @@
+# Intermediate and final proving keys are large (integrated_access_v4: ~6 MB each); they travel
+# between participants out of band. Only transcript.json, <name>.verification_key.json and
+# <name>.manifest.json are committed here; the installed pair is committed under circuits/setup/.
+*.zkey
+*.ptau
+*.ptau.info.json
+*/build/
+build/
+*.tmp
+*.log

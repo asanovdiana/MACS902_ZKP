@@ -15,3 +15,11 @@ input_v3.json
 
 # Private ZK witness inputs
 tests/*.json
+
+# agent worktrees used for parallel dispatch
+.claude/worktrees/
+
+# P2 identity secrets (floor 9): issuer signing key, client wallet and credential files
+issuer/keys/
+.zkgate/
+*.credential.json

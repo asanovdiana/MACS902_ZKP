@@ -8,7 +8,27 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha",
+    "setup:v3": "PTAU_SOURCE=pse circuits/scripts/setup.sh circuits/integrated_access_v3.circom integrated_access_v3",
+    "setup:v4": "PTAU_SOURCE=pse circuits/scripts/setup.sh circuits/integrated_access_v4.circom integrated_access_v4",
+    "artifacts:check": "circuits/scripts/artifacts.sh check integrated_access_v3 && circuits/scripts/artifacts.sh check integrated_access_v4",
+    "artifacts:install": "circuits/scripts/artifacts.sh install integrated_access_v3 && circuits/scripts/artifacts.sh install integrated_access_v4",
+    "artifacts:check:v3": "circuits/scripts/artifacts.sh check integrated_access_v3",
+    "artifacts:check:v4": "circuits/scripts/artifacts.sh check integrated_access_v4",
+    "artifacts:install:v3": "circuits/scripts/artifacts.sh install integrated_access_v3",
+    "artifacts:install:v4": "circuits/scripts/artifacts.sh install integrated_access_v4",
+    "prove:fixtures:v4": "node circuits/scripts/access-fixtures.js",
+    "perf:v4": "node circuits/scripts/perf-v4.js",
+    "mutate:v4": "node circuits/scripts/mutate.js --target circuits/integrated_access_v4.circom circuits/components/integrated_access_v4_gate.circom circuits/components/attribute_hash.circom circuits/components/issuer_key.circom circuits/components/merkle_membership_n.circom circuits/components/access_policy_v4.circom circuits/components/expiry.circom circuits/components/challenge_binding.circom circuits/components/eddsa_verifier.circom --test circuits/test/attribute_hash.test.js circuits/test/issuer_key.test.js circuits/test/merkle_depth.test.js circuits/test/policy_v4.test.js circuits/test/expiry.test.js circuits/test/challenge_binding.test.js circuits/test/v4.test.js --grep 'negatives|closed|rejected' --forbid-killers 'layout|constraint count|identical R1CS|control:|hook|positives|reproduces' --annotations circuits/scripts/mutate/annotations-v4.json --seed-builds --jobs 4 --report circuits/reports/mutation-v4.md",
+    "audit:arrows": "node circuits/scripts/mutate.js --audit-arrows 'circuits/*.circom' 'circuits/components/*.circom' 'circuits/test/circuits/*.circom'",
+    "test:all": "npm test && npm test --prefix issuer && npm test --prefix client && npm test --prefix client/attacks && npm test --prefix tests/safety",
+    "test:safety": "npm test --prefix tests/safety",
+    "ceremony:init:v3": "PTAU_SOURCE=pse circuits/scripts/ceremony.sh init circuits/integrated_access_v3.circom integrated_access_v3",
+    "ceremony:init:v4": "PTAU_SOURCE=pse circuits/scripts/ceremony.sh init circuits/integrated_access_v4.circom integrated_access_v4",
+    "ceremony:contribute": "circuits/scripts/ceremony.sh contribute",
+    "ceremony:verify": "circuits/scripts/ceremony.sh verify",
+    "ceremony:finalize": "circuits/scripts/ceremony.sh finalize",
+    "ceremony:install": "circuits/scripts/ceremony.sh install"
   },
   "keywords": [],
   "author": "",
@@ -17,9 +37,11 @@
   "devDependencies": {
     "circom_tester": "^0.0.24",
     "circomlib": "^2.0.5",
+    "mocha": "^10.8.2",
     "snarkjs": "^0.7.6"
   },
   "dependencies": {
+    "@zk-kit/incremental-merkle-tree": "1.1.0",
     "assertion-error": "^1.1.0",
     "async": "^3.2.6",
     "available-typed-arrays": "^1.0.7",

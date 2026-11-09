@@ -1,0 +1,11 @@
+{
+  "name": "zkag-circom-tools",
+  "private": true,
+  "description": "Pinned circuit toolchain used by scripts/p1-build.sh (not a workspace).",
+  "dependencies": {
+    "circom2": "0.2.23",
+    "circomlib": "2.0.5",
+    "circomlibjs": "0.1.7",
+    "snarkjs": "0.7.6"
+  }
+}

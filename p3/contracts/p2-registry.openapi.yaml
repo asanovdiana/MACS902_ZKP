@@ -1,0 +1,249 @@
+openapi: 3.1.0
+info:
+  title: ZK Access Gate — P2 Issuer / Registry / Prover contract
+  version: 0.1.0-proposed
+  description: |
+    STATUS: PROPOSED by P3. Not confirmed by P2. Language independent (P2 may implement it in Python FastAPI).
+    The P3 gateway (`gateway/src/registry/registryClient.ts`) consumes `/v1/registry/root` and the admin
+    endpoints. The P3 diagnostic stand-in (`integration/p2-standin`) implements this contract for testing.
+
+    Conventions
+    - All field elements (roots, commitments, nonces, nullifiers, epochs, signatures, public keys) are
+      CANONICAL DECIMAL STRINGS: no leading zeros, no sign, no hex, value < BN254 r =
+      21888242871839275222246405745257275088548364400416034343698204186575808495617.
+      Never JSON numbers (they lose precision above 2^53).
+    - Errors use `{ "error": { "code": "UPPER_SNAKE", "message": "..." } }`.
+    - Admin endpoints require `Authorization: Bearer <REGISTRY_ADMIN_TOKEN>` (shared secret, rotated per deployment).
+servers: [{ url: http://127.0.0.1:4600 }]
+components:
+  securitySchemes:
+    adminBearer: { type: http, scheme: bearer }
+  schemas:
+    FieldElement:
+      {
+        type: string,
+        pattern: '^(0|[1-9][0-9]{0,77})$',
+        description: 'Canonical decimal BN254 scalar',
+      }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        {
+          error:
+            {
+              type: object,
+              required: [code, message],
+              properties: { code: { type: string }, message: { type: string } },
+            },
+        }
+    RootResponse:
+      type: object
+      required: [root]
+      properties:
+        root: { $ref: '#/components/schemas/FieldElement' }
+        version:
+          {
+            type: string,
+            description: 'Monotonic registry version; increments on every insert/revoke',
+          }
+        updatedAt: { type: string, format: date-time }
+        treeDepth:
+          { type: integer, description: "Must equal the circuit's Merkle depth (Scope: 16)" }
+        hash: { type: string, enum: [poseidon] }
+        source: { type: string }
+    Credential:
+      type: object
+      description: Issued to the HOLDER only. Never sent to the gateway.
+      required: [credentialId, attributes, secretCommitment, signature, issuer, leafIndex]
+      properties:
+        credentialId: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+        attributes:
+          type: object
+          required: [role, dept, clearance, deviceCompliant, expiry]
+          properties:
+            role:
+              {
+                type: integer,
+                minimum: 0,
+                maximum: 3,
+                description: 'PROPOSED codes: engineer=0, admin=1, contractor=2, finance=3 (must match circuit role_mask bits)',
+              }
+            dept: { type: integer, minimum: 0, maximum: 3 }
+            clearance: { type: integer, minimum: 0, maximum: 3 }
+            deviceCompliant: { type: integer, enum: [0, 1] }
+            expiry: { type: integer, description: 'Unix seconds' }
+        secretCommitment: { $ref: '#/components/schemas/FieldElement' }
+        attributeHash:
+          {
+            $ref: '#/components/schemas/FieldElement',
+            description: 'Poseidon(role, dept, clearance, deviceCompliant, expiry, secretCommitment) — the signed message AND the Merkle leaf',
+          }
+        signature:
+          type: object
+          properties:
+            {
+              R8x: { $ref: '#/components/schemas/FieldElement' },
+              R8y: { $ref: '#/components/schemas/FieldElement' },
+              S: { $ref: '#/components/schemas/FieldElement' },
+            }
+        issuer:
+          {
+            type: object,
+            properties:
+              {
+                Ax: { $ref: '#/components/schemas/FieldElement' },
+                Ay: { $ref: '#/components/schemas/FieldElement' },
+              },
+          }
+        leafIndex: { type: integer }
+    IssueRequest:
+      type: object
+      required: [role, dept, clearance, deviceCompliant, expiry, secretCommitment]
+      properties:
+        role: { type: string, enum: [engineer, admin, contractor, finance] }
+        dept: { type: string, enum: [engineering, operations, finance, sales] }
+        clearance: { type: integer, minimum: 0, maximum: 3 }
+        deviceCompliant: { type: boolean }
+        expiry: { type: string, format: date-time }
+        secretCommitment: { $ref: '#/components/schemas/FieldElement' }
+    ProveRequest:
+      type: object
+      required: [credentialRef, challenge]
+      properties:
+        credentialRef:
+          { type: string, description: 'Local handle of a credential held by this prover' }
+        challenge:
+          type: object
+          required: [challengeId, profile]
+          properties:
+            challengeId: { type: string }
+            profile: { type: string, enum: [p1-integrated-v3, zkag-access-v1] }
+            nonce: { $ref: '#/components/schemas/FieldElement' }
+            resourceField: { $ref: '#/components/schemas/FieldElement' }
+            epoch: { $ref: '#/components/schemas/FieldElement' }
+    ProveResponse:
+      type: object
+      required: [proof, publicSignals, provingMs]
+      properties:
+        proof:
+          type: object
+          required: [pi_a, pi_b, pi_c, protocol, curve]
+          properties:
+            pi_a: { type: array, items: { type: string }, minItems: 3, maxItems: 3 }
+            pi_b:
+              {
+                type: array,
+                items: { type: array, items: { type: string }, minItems: 2, maxItems: 2 },
+                minItems: 3,
+                maxItems: 3,
+              }
+            pi_c: { type: array, items: { type: string }, minItems: 3, maxItems: 3 }
+            protocol: { const: groth16 }
+            curve: { const: bn128 }
+        publicSignals:
+          {
+            type: array,
+            items: { $ref: '#/components/schemas/FieldElement' },
+            description: 'Exact snarkjs order (see public-signals.*.json)',
+          }
+        provingMs: { type: number, description: 'Measured witness+proving time in the prover' }
+paths:
+  /v1/health:
+    get: { summary: Liveness, responses: { '200': { description: OK } } }
+  /v1/registry/root:
+    get:
+      summary: 'Current authoritative Merkle root (gateway polls; staleness window ≤ 30 s)'
+      responses:
+        '200':
+          {
+            description: Current root,
+            content:
+              { application/json: { schema: { $ref: '#/components/schemas/RootResponse' } } },
+          }
+        '503':
+          {
+            description: Registry unavailable,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
+  /v1/registry/history:
+    get:
+      {
+        summary: 'OPTIONAL root change history (Admin Console)',
+        responses: { '200': { description: '{ items: [{ root, version, changedAt, reason }] }' } },
+      }
+  /v1/registry/leaves:
+    get:
+      summary: 'OPTIONAL leaf listing for the Admin Console tree drawing (leaf values only; no attributes)'
+      security: [{ adminBearer: [] }]
+      responses:
+        {
+          '200':
+            { description: '{ treeDepth, root, leaves: [{ index, credentialId, status, leaf }] }' },
+        }
+  /v1/credentials:
+    post:
+      summary: 'Issue a credential (M1). Called by the gateway Admin API on behalf of the operator.'
+      security: [{ adminBearer: [] }]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/IssueRequest' } } },
+        }
+      responses:
+        '201':
+          {
+            description: Issued,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Credential' } } },
+          }
+        '400':
+          {
+            description: Invalid,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
+        '401': { description: Missing/invalid admin token }
+  /v1/credentials/{id}/status:
+    get:
+      summary: Credential status
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        {
+          '200': { description: '{ credentialId, status: active|revoked|expired, root }' },
+          '404': { description: Unknown },
+        }
+  /v1/credentials/{id}/revoke:
+    post:
+      summary: 'Revoke (remove leaf → new root)'
+      security: [{ adminBearer: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        {
+          '200': { description: '{ credentialId, status: revoked, root, version }' },
+          '409': { description: Already revoked / unknown },
+        }
+  /v1/admin/reset:
+    post:
+      {
+        summary: 'OPTIONAL demo reset',
+        security: [{ adminBearer: [] }],
+        responses: { '200': { description: OK } },
+      }
+  /v1/prover/proofs:
+    post:
+      summary: "USER-SIDE prover (M4). Runs on the holder's machine; the gateway never calls it."
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProveRequest' } } },
+        }
+      responses:
+        '200':
+          {
+            description: Proof,
+            content:
+              { application/json: { schema: { $ref: '#/components/schemas/ProveResponse' } } },
+          }
+        '422':
+          {
+            description: 'WITNESS_UNSATISFIABLE — the credential does not satisfy the circuit (e.g. policy not met, revoked)',
+          }

@@ -1,0 +1,8 @@
+{
+  "$comment": "OBSERVED layout of the delivered P1 circuit (compiled from unmodified sources, nPublic=1).",
+  "circuitId": "integrated_access_v3",
+  "status": "observed",
+  "signals": [
+    { "index": 0, "name": "root", "kind": "public input", "definition": "Merkle root (depth 2)" }
+  ]
+}

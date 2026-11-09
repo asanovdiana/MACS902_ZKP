@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+integration/p1-diagnostics/build
+tools
+artifacts
+bench/results
+ui/test-results
+ui/playwright-report
+package-lock.json
+*.pdf

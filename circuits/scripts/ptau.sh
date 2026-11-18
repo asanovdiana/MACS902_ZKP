@@ -190,7 +190,7 @@ dev() {
   fi
   [ -f "$final" ] && log "cached $(basename "$final") does not match its .info.json; regenerating"
   local w; w="$(mktemp -d "$PTAU_DIR/dev-XXXXXX")"
-  trap 'rm -rf "$w"' EXIT
+  trap "rm -rf '$w'" EXIT
   log "=== DEV-ONLY Powers of Tau ceremony, power $N — NOT FOR PRODUCTION ==="
   snarkjs powersoftau new bn128 "$N" "$w/pot_0000.ptau"
   snarkjs_contribute powersoftau contribute "$w/pot_0000.ptau" "$w/pot_0001.ptau" --name="DEV-ONLY contribution 1"

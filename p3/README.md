@@ -33,7 +33,7 @@ npm run v4:setup   # starts the team issuer, enrols Alice/Bob/Carol into wallets
 npm run dev        # services, issuer :8100, gateway :4000, wallet prover :4700, SSO :4200, UI :5173
 ```
 
-Open **http://localhost:5173** and sign in with `OPERATOR_TOKEN` from `.env.example` (development value). For Keycloak, also run `docker compose up keycloak`. The demo users are `alice`, `bob` and `carol`; their development passwords are in `baseline/keycloak/realm-zkag.json`.
+Open **http://localhost:5173** and sign in with `OPERATOR_TOKEN` from `env.example` (development value). For Keycloak, also run `docker compose up keycloak`. The demo users are `alice`, `bob` and `carol`; their development passwords are in `baseline/keycloak/realm-zkag.json`.
 
 `npm run dev:v3` runs the earlier **diagnostic** profile instead: the P1 v3 circuit plus the P3 stand-in. It needs `npm run p1:build` and never grants access.
 
@@ -71,4 +71,4 @@ Builds from the repository root. A one-shot `setup` container enrols the persona
 
 ## Environment variables
 
-All variables are documented in [.env.example](.env.example). With `NODE_ENV=production`, every component refuses development secrets; the gateway also refuses non-`Secure` cookies and `ALLOW_DEMO_KEYS`.
+All variables are documented in [env.example](env.example). With `NODE_ENV=production`, every component refuses development secrets; the gateway also refuses non-`Secure` cookies and `ALLOW_DEMO_KEYS`.

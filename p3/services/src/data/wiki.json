@@ -1,0 +1,103 @@
+[
+  {
+    "slug": "zero-trust-onboarding",
+    "title": "Zero-Trust Onboarding Guide",
+    "category": "Security",
+    "summary": "How every request is verified, every time, and what that means for your first week.",
+    "updated": "2026-10-28",
+    "author": "Security Engineering",
+    "readMinutes": 6,
+    "body": [
+      "Northwind follows a zero-trust model: network location never grants access. Every request to an internal service is evaluated against the policy for that service.",
+      "New starters receive a signed credential from the identity office. The credential lists role, department, clearance and device posture, and only the holder keeps it.",
+      "When you open an internal tool, the access gateway sends a fresh challenge. Your client proves that your credential satisfies the tool's policy without disclosing the credential itself.",
+      "Sessions last ten minutes. After that, or if the credential registry changes, you simply prove again."
+    ]
+  },
+  {
+    "slug": "incident-response-runbook",
+    "title": "Incident Response Runbook (v4)",
+    "category": "Operations",
+    "summary": "Severity levels, paging rules and the first 30 minutes of a security incident.",
+    "updated": "2026-10-14",
+    "author": "SRE Guild",
+    "readMinutes": 9,
+    "body": [
+      "SEV-1: customer-visible outage or confirmed data exposure. Page the incident commander immediately.",
+      "SEV-2: degraded service with a workaround. Open an incident channel within 15 minutes.",
+      "SEV-3: internal impact only. File a ticket and notify the owning team.",
+      "During the first 30 minutes: stabilise, communicate, preserve evidence. Do not rotate credentials before forensic snapshots are taken unless instructed."
+    ]
+  },
+  {
+    "slug": "device-compliance",
+    "title": "Device Compliance Requirements",
+    "category": "Security",
+    "summary": "Disk encryption, OS patch level and endpoint protection required for compliant devices.",
+    "updated": "2026-09-30",
+    "author": "Endpoint Team",
+    "readMinutes": 4,
+    "body": [
+      "Full-disk encryption must be enabled and escrowed.",
+      "Operating system patches older than 30 days make a device non-compliant.",
+      "Endpoint protection must report healthy within the last 24 hours.",
+      "Non-compliant devices can still reach the public intranet but not services whose policy requires a compliant device."
+    ]
+  },
+  {
+    "slug": "release-train",
+    "title": "Release Train Calendar",
+    "category": "Engineering",
+    "summary": "Fortnightly release cadence, code freeze windows and the hotfix process.",
+    "updated": "2026-11-02",
+    "author": "Release Management",
+    "readMinutes": 3,
+    "body": [
+      "Release branches are cut every second Tuesday at 10:00 UTC.",
+      "Code freeze begins 24 hours before the cut.",
+      "Hotfixes require approval from the on-call engineering manager and a linked incident."
+    ]
+  },
+  {
+    "slug": "expense-policy",
+    "title": "Travel and Expense Policy",
+    "category": "Finance",
+    "summary": "What can be expensed, approval limits and receipt requirements.",
+    "updated": "2026-08-19",
+    "author": "Finance Operations",
+    "readMinutes": 5,
+    "body": [
+      "Economy class for flights under six hours.",
+      "Receipts are required for any expense above 25 EUR.",
+      "Managers approve up to 2,000 EUR; above that requires finance director sign-off."
+    ]
+  },
+  {
+    "slug": "api-style-guide",
+    "title": "Internal API Style Guide",
+    "category": "Engineering",
+    "summary": "Naming, versioning, error envelopes and pagination for internal HTTP APIs.",
+    "updated": "2026-10-05",
+    "author": "Platform Team",
+    "readMinutes": 7,
+    "body": [
+      "Version APIs in the path: /v1/\u2026",
+      "Errors use the envelope { error: { code, message } } with stable, machine-readable codes.",
+      "Large integers (field elements, IDs) are serialised as decimal strings, never JSON numbers.",
+      "Cursor-based pagination is preferred over offsets."
+    ]
+  },
+  {
+    "slug": "office-access",
+    "title": "Office Access and Visitors",
+    "category": "Workplace",
+    "summary": "Badge rules, visitor registration and lab access.",
+    "updated": "2026-07-21",
+    "author": "Workplace Services",
+    "readMinutes": 2,
+    "body": [
+      "Visitors must be registered 24 hours in advance.",
+      "Lab access requires a separate safety induction."
+    ]
+  }
+]

@@ -1,0 +1,126 @@
+# ZK Access Gate — full demonstration stack (team v4 circuit, team issuer, P3 gateway/UI, Keycloak).
+#   cd p3 && docker compose up --build        → UI http://localhost:8088 · Keycloak http://localhost:8080
+# Build context is the team repository root (..), so the team issuer, client and circuits are used
+# exactly as committed. DEVELOPMENT VALUES ONLY: override the secrets in p3/.env for anything else.
+name: zk-access-gate
+
+x-dev-secrets: &dev-secrets
+  OPERATOR_TOKEN: ${OPERATOR_TOKEN:-dev-operator-token-change-me-000000}
+  REGISTRY_ADMIN_TOKEN: ${REGISTRY_ADMIN_TOKEN:-dev-registry-admin-token-change-me-0000}
+  ISSUER_ADMIN_TOKEN: ${REGISTRY_ADMIN_TOKEN:-dev-registry-admin-token-change-me-0000}
+  ASSERTION_SECRET_ZK: ${ASSERTION_SECRET_ZK:-dev-zk-gateway-assertion-secret-change-me-0000}
+  ASSERTION_SECRET_SSO: ${ASSERTION_SECRET_SSO:-dev-sso-baseline-assertion-secret-change-me-000}
+
+x-node: &node
+  context: ..
+  dockerfile: p3/docker/node.Dockerfile
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin-dev-only}
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
+      KC_HTTP_ENABLED: 'true'
+    volumes:
+      - ./baseline/keycloak/realm-zkag.json:/opt/keycloak/data/import/realm-zkag.json:ro
+    ports: ['8080:8080']
+    networks: [edge]
+
+  issuer:
+    build: { <<: *node, target: issuer }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: production
+      ISSUER_LOG_LEVEL: warn
+    volumes: [issuer-state:/data/issuer]
+    networks: [edge]
+
+  setup:
+    build: { <<: *node, target: setup }
+    environment:
+      <<: *dev-secrets
+      ISSUER_URL: http://issuer:8100
+    volumes: [v4demo:/app/p3/.v4-demo]
+    depends_on: { issuer: { condition: service_healthy } }
+    networks: [edge]
+
+  services:
+    build: { <<: *node, target: services }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      SERVICES_HOST: 0.0.0.0
+    networks: [internal] # no published ports: reachable only through the two front doors
+
+  gateway:
+    build: { <<: *node, target: gateway }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      GATEWAY_HOST: 0.0.0.0
+      ZK_PROFILE: integrated-access-v4
+      ALLOW_DEMO_KEYS: 'true' # team keys are DEV-ONLY until the multi-party ceremony
+      TRUSTED_ISSUER_FILE: .v4-demo/issuer-pin.json
+      REGISTRY_URL: http://issuer:8100
+      UPSTREAM_WIKI_URL: http://services:4101
+      UPSTREAM_FILE_SHARE_URL: http://services:4102
+      UPSTREAM_ADMIN_PANEL_URL: http://services:4103
+      SSO_GATEWAY_URL: http://sso-gateway:4200
+      ALLOWED_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
+      TRUST_PROXY: uniquelocal
+    volumes:
+      - v4demo:/app/p3/.v4-demo:ro
+      - ./bench/results:/app/p3/bench/results:ro
+    depends_on:
+      services: { condition: service_healthy }
+      issuer: { condition: service_healthy }
+      setup: { condition: service_completed_successfully }
+    networks: [edge, internal]
+
+  wallet-prover:
+    build: { <<: *node, target: wallet-prover }
+    environment:
+      <<: *dev-secrets
+      ISSUER_URL: http://issuer:8100
+      GATEWAY_URL: http://gateway:4000
+      WALLET_ROOT: .v4-demo/wallets
+    volumes: [v4demo:/app/p3/.v4-demo]
+    depends_on: { setup: { condition: service_completed_successfully } }
+    networks: [edge]
+
+  sso-gateway:
+    build: { <<: *node, target: sso-gateway }
+    environment:
+      <<: *dev-secrets
+      NODE_ENV: development
+      SSO_HOST: 0.0.0.0
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dev-sso-baseline-client-secret-change-me}
+      OIDC_REDIRECT_URI: http://localhost:8088/sso/callback
+      POST_LOGOUT_REDIRECT_URI: http://localhost:8088/compare
+      ALLOWED_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
+      UPSTREAM_WIKI_URL: http://services:4101
+      UPSTREAM_FILE_SHARE_URL: http://services:4102
+      UPSTREAM_ADMIN_PANEL_URL: http://services:4103
+    depends_on:
+      { services: { condition: service_healthy }, keycloak: { condition: service_started } }
+    networks: [edge, internal]
+
+  ui:
+    build: { context: .., dockerfile: p3/docker/ui.Dockerfile }
+    ports: ['8088:8088']
+    depends_on: [gateway, sso-gateway, wallet-prover]
+    networks: [edge]
+
+volumes:
+  issuer-state: {}
+  v4demo: {}
+
+networks:
+  edge: {}
+  internal: { internal: true }

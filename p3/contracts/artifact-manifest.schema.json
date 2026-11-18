@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Circuit artifact manifest (artifacts/<profile>/manifest.json)",
+  "type": "object",
+  "required": [
+    "circuitId",
+    "profile",
+    "version",
+    "proofSystem",
+    "curve",
+    "nPublic",
+    "publicSignals",
+    "securityStatus",
+    "files"
+  ],
+  "properties": {
+    "circuitId": { "type": "string" },
+    "profile": { "enum": ["p1-integrated-v3", "integrated-access-v4"] },
+    "version": { "type": "string" },
+    "proofSystem": { "const": "groth16" },
+    "curve": { "const": "bn128" },
+    "nPublic": { "type": "integer" },
+    "publicSignals": { "type": "array", "items": { "type": "string" } },
+    "securityStatus": { "type": "string" },
+    "trustedSetup": { "type": "string" },
+    "securityReview": {
+      "type": "object",
+      "description": "The gateway issues sessions only when status is 'accepted'. Must reference the review (e.g. negative-test report).",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["accepted", "rejected", "pending"] },
+        "reviewer": { "type": "string" },
+        "date": { "type": "string" },
+        "reference": { "type": "string" }
+      }
+    },
+    "files": {
+      "type": "object",
+      "required": ["verificationKey"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "p1Sources": { "type": "object", "additionalProperties": { "type": "string" } }
+  }
+}

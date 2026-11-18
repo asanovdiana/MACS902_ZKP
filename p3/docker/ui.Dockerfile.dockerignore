@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.git
+**/.*
+docs
+tests
+p3/tools
+p3/integration/p1-diagnostics/build
+p3/artifacts
+p3/bench/results
+p3/ui/test-results
+p3/ui/playwright-report
+issuer/keys
+issuer/data
+**/.env
+*.pdf

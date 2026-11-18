@@ -1,0 +1,190 @@
+{
+  "generatedAt": "2026-11-07T23:05:33.692Z",
+  "environment": {
+    "node": "v23.7.0",
+    "platform": "darwin 25.3.0",
+    "cpu": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+    "cores": 16,
+    "memoryGiB": 16
+  },
+  "artifact": {
+    "circuitId": "integrated_access_v3",
+    "version": "development",
+    "trustedSetup": "DEVELOPMENT ONLY: locally generated powers of tau + single P3 phase-2 contribution",
+    "vkeySha256": "8cc7b5236093a5f15a72daf5fffa2e131c5928fac858c9f484fc69c16971157e"
+  },
+  "config": {
+    "iterations": 100,
+    "proveIterations": 100,
+    "timer": "performance.now()",
+    "warmupExcluded": true,
+    "gatewayRateLimit": "raised for benchmarking only",
+    "transport": "HTTP/1.1 over loopback"
+  },
+  "metrics": [
+    {
+      "id": "constraints",
+      "label": "Circuit size (R1CS constraints)",
+      "unit": "constraints",
+      "status": "measured",
+      "samples": 1,
+      "median": 9645,
+      "p95": 9645,
+      "min": 9645,
+      "max": 9645,
+      "note": "17 private inputs, 1 public input(s)"
+    },
+    {
+      "id": "prove",
+      "label": "Proving time, native Node (witness + Groth16)",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 562.9228869999988,
+      "p95": 594.9062894000006,
+      "min": 525.2484059999988,
+      "max": 646.2204310000016,
+      "mean": 564.1733523200004,
+      "note": "snarkjs.groth16.fullProve, P1 integrated_access_v3, depth-2 tree; 1 warm-up excluded"
+    },
+    {
+      "id": "proof-json",
+      "label": "Proof size as JSON (decimal strings)",
+      "unit": "bytes",
+      "status": "measured",
+      "samples": 100,
+      "median": 723,
+      "p95": 725,
+      "min": 718,
+      "max": 726,
+      "mean": 722.87
+    },
+    {
+      "id": "proof-size",
+      "label": "Proof size (BN254 Groth16, uncompressed affine)",
+      "unit": "bytes",
+      "status": "measured",
+      "samples": 100,
+      "median": 256,
+      "p95": 256,
+      "min": 256,
+      "max": 256,
+      "note": "A,C ∈ G1 (64 B each) + B ∈ G2 (128 B); fixed by the proof system, structure checked on every sample"
+    },
+    {
+      "id": "verify",
+      "label": "Verify time at gateway (snarkjs groth16.verify, warm)",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 10.756591000001208,
+      "p95": 12.601211900003909,
+      "min": 8.964467999998305,
+      "max": 19.801327000001038,
+      "mean": 10.959322139999932
+    },
+    {
+      "id": "gateway-e2e",
+      "label": "ZK gateway: challenge + verify, HTTP round trips",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 15.029326500000025,
+      "p95": 19.27921910000332,
+      "min": 12.876009000006889,
+      "max": 25.69424699999945,
+      "mean": 15.528576259999973,
+      "note": "decision=blocked (diagnostic P1 profile); root cache 2000 ms"
+    },
+    {
+      "id": "gateway-pipeline",
+      "label": "ZK gateway: server-side verification pipeline",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 11.45522599999822,
+      "p95": 14.077218399999762,
+      "min": 9.966905000001134,
+      "max": 16.92534799999703,
+      "mean": 11.729385239999392,
+      "note": "schema → challenge → registry root → Groth16 → decision"
+    },
+    {
+      "id": "gateway-reject-invalid",
+      "label": "Rejected request: invalid proof (verify HTTP)",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 7.951585499999055,
+      "p95": 10.740812499998349,
+      "min": 6.96387799999502,
+      "max": 17.482828000000154,
+      "mean": 8.405830659999701
+    },
+    {
+      "id": "gateway-reject-replay",
+      "label": "Rejected request: replayed challenge (verify HTTP)",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 1.335842500004219,
+      "p95": 1.721004149996952,
+      "min": 1.191716000001179,
+      "max": 3.4058199999999488,
+      "mean": 1.3981261100000848
+    },
+    {
+      "id": "sso-request",
+      "label": "SSO baseline: per-request JWT validation + policy + proxy",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 2.1183505000008154,
+      "p95": 3.5563400499988345,
+      "min": 1.8002720000004047,
+      "max": 7.0866080000050715,
+      "mean": 2.352158249999629,
+      "note": "local JWKS; excludes the Keycloak login round trip"
+    },
+    {
+      "id": "zk-vs-sso",
+      "label": "ZK authorization overhead vs SSO request (median difference)",
+      "unit": "ms",
+      "status": "measured",
+      "samples": 100,
+      "median": 12.91097599999921,
+      "p95": 15.722879050004487,
+      "min": null,
+      "max": null,
+      "note": "ZK challenge+verify (excluding client proving) minus SSO per-request validation. Not like-for-like: ZK re-proves per session, SSO validates a token per request."
+    },
+    {
+      "id": "keycloak-login",
+      "label": "Keycloak login round trip (Authorization Code + PKCE)",
+      "unit": "ms",
+      "status": "blocked",
+      "reason": "Keycloak not running in this environment (Docker unavailable); measure with docker compose up keycloak"
+    },
+    {
+      "id": "zk-session-request",
+      "label": "ZK gateway: session-authorized proxied request",
+      "unit": "ms",
+      "status": "blocked",
+      "reason": "no authorization-eligible circuit: P1 v3 cannot issue sessions"
+    },
+    {
+      "id": "prove-browser",
+      "label": "Proving time, browser (N1)",
+      "unit": "ms",
+      "status": "blocked",
+      "reason": "in-browser proving (nice-to-have N1) not implemented"
+    },
+    {
+      "id": "prove-vs-depth",
+      "label": "Proving time vs Merkle depth (8, 16, 20)",
+      "unit": "ms",
+      "status": "blocked",
+      "reason": "P1 circuit has a fixed depth of 2; parametric depth requires P1"
+    }
+  ]
+}

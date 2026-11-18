@@ -1,0 +1,114 @@
+openapi: 3.1.0
+info:
+  title: ZK Access Gate — Gateway API (P3)
+  version: 0.1.0
+  description: 'Implemented by gateway/. Error envelope { error: { code, message } }. Field elements are canonical decimal strings.'
+servers: [{ url: http://127.0.0.1:4000 }]
+paths:
+  /healthz: { get: { summary: Liveness, responses: { '200': { description: '{ status: ok }' } } } }
+  /readyz:
+    get:
+      summary: 'Readiness: 200 only when real ZK authorization can be performed end to end; otherwise 503 with component breakdown.'
+      responses: { '200': { description: ready }, '503': { description: degraded / blocked } }
+  /api/status:
+    {
+      get:
+        {
+          summary: 'Public status (mode, profile capabilities, artifacts, settings)',
+          responses: { '200': { description: OK } },
+        },
+    }
+  /api/policies:
+    { get: { summary: Server-authoritative policies, responses: { '200': { description: OK } } } }
+  /api/zk/challenges:
+    post:
+      summary: Issue a one-time challenge
+      requestBody:
+        {
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [resource],
+                      properties: { resource: { enum: [wiki, file-share, admin-panel] } },
+                      additionalProperties: false,
+                    },
+                },
+            },
+        }
+      responses:
+        '201':
+          {
+            description: '{ challengeId, nonce, resource, resourceField, epoch, issuedAt, expiresAt, policy{summary,roleMask,deptMask,minClearance,requireDevice}, scheme{proofSystem,curve,profile,publicSignals[]}, correlationId }',
+          }
+        '400': { description: invalid resource }
+        '429': { description: RATE_LIMITED }
+  /api/zk/verify:
+    post:
+      summary: Verify a proof against a challenge; issues a resource-scoped session cookie only when every guarantee is established
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [challengeId, proof, publicSignals]
+              properties:
+                challengeId: { type: string, pattern: '^[A-Za-z0-9_-]{16,64}$' }
+                proof:
+                  {
+                    $ref: 'p2-registry.openapi.yaml#/components/schemas/ProveResponse/properties/proof',
+                  }
+                publicSignals: { type: array, maxItems: 32, items: { type: string } }
+                client:
+                  {
+                    type: object,
+                    properties: { provingMs: { type: number }, prover: { type: string } },
+                  }
+      responses:
+        '200':
+          {
+            description: 'decision=granted; Set-Cookie zkag_<resource> (HttpOnly; SameSite=Strict; Path=/svc/<resource>; Max-Age=600)',
+          }
+        '400': { description: 'INVALID_REQUEST | PUBLIC_SIGNAL_LAYOUT_MISMATCH' }
+        '403':
+          {
+            description: 'denied: CHALLENGE_UNKNOWN | CHALLENGE_EXPIRED | ROOT_MISMATCH | POLICY_PARAMS_MISMATCH | NONCE_MISMATCH | RESOURCE_MISMATCH | EPOCH_MISMATCH | TIME_OUT_OF_RANGE | ISSUER_UNTRUSTED | PROOF_INVALID | PROFILE_MISMATCH',
+          }
+        '409': { description: CHALLENGE_REPLAYED }
+        '413': { description: PROOF_TOO_LARGE / PAYLOAD_TOO_LARGE }
+        '424':
+          {
+            description: 'blocked: PROFILE_NOT_AUTHORIZATION_ELIGIBLE | ARTIFACTS_UNAVAILABLE | ISSUER_NOT_CONFIGURED',
+          }
+        '429': { description: 'NULLIFIER_RATE_LIMITED | RATE_LIMITED' }
+        '503': { description: REGISTRY_UNAVAILABLE (fail closed) }
+  /svc/{resource}/{path}:
+    get:
+      {
+        summary: 'Reverse proxy to the configured upstream; requires zkag_<resource> session',
+        responses:
+          {
+            '401':
+              {
+                description: 'SESSION_MISSING | SESSION_INVALID | SESSION_EXPIRED | SESSION_WRONG_RESOURCE | SESSION_REVOKED_ROOT_CHANGED',
+              },
+          },
+      }
+  /svc/{resource}/_zkag/logout: { post: { summary: Revoke the session for this resource } }
+  /api/operator/login:
+    { post: { summary: 'Operator login { token } → zkag_operator cookie (rate limited 10/min)' } }
+  /api/operator/events: { get: { summary: 'Recent safe events (operator)' } }
+  /api/events/ws:
+    { get: { summary: 'WebSocket event stream (operator cookie + allowlisted Origin required)' } }
+  /api/admin/registry:
+    { get: { summary: 'Registry root, leaves, history (operator; proxied to P2)' } }
+  /api/admin/credentials: { post: { summary: 'Issue via P2 (operator)' } }
+  /api/admin/credentials/{id}/status: { get: { summary: 'Status via P2 (operator)' } }
+  /api/admin/credentials/{id}/revoke:
+    { post: { summary: 'Revoke via P2; forces root refresh and session invalidation (operator)' } }
+  /api/admin/demo/reset:
+    { post: { summary: 'Clear gateway state and request registry reset (operator)' } }

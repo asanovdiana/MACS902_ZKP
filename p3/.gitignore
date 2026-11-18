@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+integration/p1-diagnostics/build/
+artifacts/p1-integrated-v3/
+artifacts/fixtures/
+ui/test-results/
+ui/playwright-report/
+.DS_Store
+evidence/
+docs/
+.v4-demo/

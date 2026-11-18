@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-ink-950: #060a13;
+  --color-ink-900: #0a101d;
+  --color-ink-850: #0d1424;
+  --color-ink-800: #111a2d;
+  --color-ink-700: #1a2540;
+  --color-ink-600: #25324f;
+  --color-ink-500: #3a4a6b;
+  --color-ink-400: #6b7a99;
+  --color-ink-300: #98a5c0;
+  --color-ink-200: #c6cfe1;
+  --color-ink-100: #e6ebf5;
+  --color-accent: #22d3ee;
+  --color-accent-strong: #06b6d4;
+  --color-signal: #3b82f6;
+  --color-ok: #34d399;
+  --color-bad: #f87171;
+  --color-warn: #fbbf24;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
+@layer components {
+  .panel {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--color-ink-800) 92%, white 2%),
+      var(--color-ink-850)
+    );
+    border: 1px solid var(--color-ink-700);
+    border-radius: 14px;
+  }
+  .mono {
+    font-family: var(--font-mono);
+    font-feature-settings: 'zero' 1;
+  }
+  .grid-bg {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--color-ink-600) 60%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+.pulse-ring {
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.slide-in {
+  animation: slide-in 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-ring,
+  .slide-in {
+    animation: none;
+  }
+}

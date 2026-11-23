@@ -32,3 +32,6 @@ contributing on their own machine.
 ## 2. Contributions
 
 <!-- Each participant appends their contribution hash here before passing the zkey on. -->
+- **#1 P1 circuits - simulated by agent on same machine** — contribution hash `b94c7befc2143dac2ee41c774716c8e2d641ba7beac2f23df96b826dfa9070e3b68897b4b96da046b5a0feaec0b631535f74026f6ec2d0a00bf5ea0232f81ccf`, zkey sha256 `64e08294b5240c37e109134363c518592f6124d917eb0e69be7faefbb5d72efb` (from transcript.json), 2026-11-23T16:36:02Z
+- **#2 P2 identity - simulated by agent on same machine** — contribution hash `65c1a72c1dac225ba16a973dabb762d32b32176ab6a2c520875acbccaa0c3f4a6ffbc6d5eddd1368f12e0e1b3e05e6eb91e2566ddacb4b8ad30d25e899a807cc`, zkey sha256 `711ce556cb9e57bdfb8d4fd406ae79363a913b730b6404ec71003e73228314ac` (from transcript.json), 2026-11-23T16:37:35Z; verified #1 before contributing
+- **#3 P3 gateway - simulated by agent on same machine** — contribution hash `6ae8dc38bc675c88796e62e566b353dab2911b76fd199726902d8e444981ce29bf6d0ac43e92e8178f5a24997b4ae259314d832c18cf6788dd1ccc9f1938c7c9`, zkey sha256 `58f37d60da398d894bc71d48d0d7f6cd8aae94025db59b55a3ae373d7af0c624` (from transcript.json), 2026-11-23T16:39:01Z; verified #1–#2 before contributing

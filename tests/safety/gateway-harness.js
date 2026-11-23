@@ -2,31 +2,31 @@
 // In-process harness for the REAL P3 gateway (p3/gateway/src), used by the gateway half of floors
 // 3, 4, 5 and 7 (F3.09, F4.06, F5.07, F7.05).
 //
-// What is real: the gateway's own TypeScript source (createApp, routes, VerificationPipeline,
-// ChallengeStore, NullifierStore, SessionStore, EventBus, artifact loader with its manifest/sha256
-// integrity check, and the snarkjs Groth16 verifier), loaded with tsx exactly as written; the
-// committed v4 fixtures and verification key (circuits/fixtures/v4), read from disk at test time.
-// Requests go through the HTTP stack (supertest, as the gateway's own tests do).
+// What is real: the gateway's own TypeScript source loaded with tsx exactly as written, in its
+// production v4 configuration: the built-in `integrated-access-v4` profile (ZK_PROFILE), the default
+// artefact manifest (circuits/setup/integrated_access_v4.manifest.json, integrity-checked by the
+// gateway's loader; ALLOW_DEMO_KEYS because the key is DEV/DEMO-ONLY), the pinned issuer, the
+// snarkjs Groth16 verifier, the challenge/nullifier/session stores and the event bus. Requests take
+// the path the team client takes: `GET /challenge?resource=` then
+// `POST /access {resource, nonce, proof, publicSignals}` (p3/gateway/src/routes/teamAccess.ts), over
+// HTTP (supertest). Proofs, public signals and fixtures.json are the committed
+// circuits/fixtures/v4 files, read from disk at test time.
 //
-// Seams (all of them exist in p3 today; nothing under p3/ is modified):
-//   - `clock`, `registry`, `logger` and `testOverrides.profile` of createApp's AppDeps;
-//   - the registry double is the gateway's own FakeRegistry (p3/gateway/tests/helpers.ts);
-//   - the challenge nonce: the gateway draws a random nonce, and a committed proof is bound to the
-//     fixture's nonce. After a REAL challenge issuance (POST /api/zk/challenges) the harness sets
-//     the stored challenge's nonce to the fixture's (`ctx.challenges.peek(id)`), i.e. "the RNG drew
-//     this nonce". Every other challenge field (id, resource, epoch, TTL, single-use state) is the
-//     gateway's own. fixtures/v4/README.md: "Treat each fixture's nonce as issued by the gateway".
-//   - the v4 profile: the gateway ships no `access.public_signals v4` profile yet (it has
-//     p1-integrated-v3 and the proposed zkag-access-v1, whose order differs). The harness builds
-//     one from fixtures.json `public_signals` (the contract order) with the gateway's own signal
-//     vocabulary (`now` -> `currentTime`) and every REQUIRED_CAPABILITY the gateway defines.
+// Seams (nothing under p3/ is modified):
+//   - createApp's `clock`, `registry` and `logger` deps (AppDeps); the registry double is the
+//     gateway's own FakeRegistry (p3/gateway/tests/helpers.ts), which implements the issuer.api
+//     staleness rule (insert keeps an old root acceptable, revoke does not);
+//   - the challenge nonce: the gateway draws 128 random bits, and a committed proof is bound to the
+//     fixture's nonce. After a REAL `GET /challenge`, the harness rebinds that stored challenge (and
+//     the store's nonce index) to the fixture's nonce, i.e. "the RNG drew this nonce". Every other
+//     challenge field (id, resource, now, epoch, TTL, single-use state) is the gateway's own.
+//     fixtures/v4/README.md: "Treat each fixture's nonce as issued by the gateway". This touches the
+//     ChallengeStore's private `byNonce` index; the harness fails loudly if its shape changes.
 //
 // Setup (once): `npm ci --prefix p3 && npm --prefix p3 run build -w shared`. Missing or stale
 // setup FAILS the test with that instruction; it never skips.
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
-const crypto = require("crypto");
 const { createRequire } = require("module");
 const { pathToFileURL } = require("url");
 const h = require("./helpers");
@@ -34,8 +34,7 @@ const h = require("./helpers");
 const P3 = h.r("p3");
 const GW = path.join(P3, "gateway");
 const SETUP = "npm ci --prefix p3 && npm --prefix p3 run build -w shared";
-const PROFILE_ID = "access-v4";
-const CIRCUIT_ID = "integrated_access_v4";
+const PROFILE_ID = "integrated-access-v4";
 const OPERATOR_TOKEN = "safety-gateway-operator-token-0f1e2d3c";
 
 /** Throw (never skip) when the P3 dependencies or the shared build are missing or stale. */
@@ -65,135 +64,102 @@ async function loadGateway() {
   assertP3Setup();
   const { tsImport } = require(path.join(P3, "node_modules", "tsx", "dist", "esm", "api", "index.cjs"));
   const imp = async (rel) => tsImport(pathToFileURL(path.join(GW, rel)).href, __filename);
-  const [app, helpers, profiles, groth16] = await Promise.all([
-    imp("src/app/createApp.ts"),
-    imp("tests/helpers.ts"),
-    imp("src/verification/profiles.ts"),
-    imp("src/verification/groth16.ts"),
-  ]);
+  const [app, helpers] = await Promise.all([imp("src/app/createApp.ts"), imp("tests/helpers.ts")]);
   const p3require = createRequire(path.join(GW, "package.json"));
   loaded = {
     createApp: app.createApp,
     FakeClock: helpers.FakeClock,
     FakeRegistry: helpers.FakeRegistry,
     testConfig: helpers.testConfig,
-    REQUIRED_CAPABILITIES: profiles.REQUIRED_CAPABILITIES,
-    SnarkjsGroth16Verifier: groth16.SnarkjsGroth16Verifier,
     pino: p3require("pino"),
     request: p3require("supertest"),
-    p3snarkjs: p3require("snarkjs"),
   };
   return loaded;
 }
 
-const fixtureIndex = () => h.fixtureIndex();
-const VKEY_FILE = path.join(h.FIXTURES, "verification_key.json");
-
-/** fixtures.json resource names (file_share) -> gateway resource ids (file-share). */
-const gatewayResource = (name) => name.replace(/_/g, "-");
-
-/** The `access.public_signals v4` profile in the gateway's vocabulary, built from fixtures.json. */
-function v4Profile(gw, idx) {
-  const rename = { now: "currentTime" };
-  return {
-    id: PROFILE_ID,
-    circuitId: CIRCUIT_ID,
-    title: "access.public_signals v4 (safety tier)",
-    signals: idx.public_signals.map((n) => rename[n] || n),
-    capabilities: Object.fromEntries(gw.REQUIRED_CAPABILITIES.map((c) => [c, true])),
-    policyCoverage: ["wiki", "file-share", "admin-panel"],
-    notes: ["safety tier: committed v4 fixtures; DEV-ONLY key"],
-  };
-}
-
-/** A temp artifact dir the gateway's own loader integrity-checks (manifest + vkey sha256). */
-function v4ArtifactDir(profile) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zkgate-safety-gw-art-"));
-  const raw = fs.readFileSync(VKEY_FILE);
-  const vkey = JSON.parse(raw.toString("utf8"));
-  fs.writeFileSync(path.join(dir, "verification_key.json"), raw);
-  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
-    circuitId: CIRCUIT_ID,
-    profile: profile.id,
-    version: "v4-fixtures",
-    proofSystem: "groth16",
-    curve: "bn128",
-    nPublic: vkey.nPublic,
-    publicSignals: profile.signals,
-    securityStatus: "DEV-ONLY (TEST-ONLY fixtures)",
-    securityReview: { status: "accepted", reviewer: "safety tier", reference: "tests/safety/gateway-harness.js" },
-    files: { verificationKey: { path: "verification_key.json", sha256: crypto.createHash("sha256").update(raw).digest("hex") } },
-  }));
-  return dir;
-}
-
 /**
  * A fresh gateway (fresh challenge, nullifier and session state) in a fixture's `gateway_state`.
- * Options: `root` (registry root), `nowS` (unix seconds on the gateway clock).
- * Returns {app, ctx, clock, registry, sink, idx, challenge, present, verify, nowS}.
+ * Options: `state` (a fixtures.json gateway_state), `root` (registry root), `nowS` (gateway clock).
  */
 async function makeGateway({ state, root, nowS } = {}) {
   const gw = await loadGateway();
-  const idx = fixtureIndex();
+  const idx = h.fixtureIndex();
   const st = state || idx.fixtures.alice_wiki.gateway_state;
-  const profile = v4Profile(gw, idx);
   const config = gw.testConfig({
     LOG_LEVEL: "trace",
     OPERATOR_TOKEN,
-    ZK_PROFILE: "zkag-access-v1",
-    ARTIFACT_DIR: v4ArtifactDir(profile),
+    ZK_PROFILE: PROFILE_ID,
+    ALLOW_DEMO_KEYS: "true",
     TRUSTED_ISSUER_AX: idx.context.pinned_issuer.Ax,
     TRUSTED_ISSUER_AY: idx.context.pinned_issuer.Ay,
     CHALLENGE_TTL_SECONDS: String(idx.context.nonce_ttl_seconds),
-    CLOCK_SKEW_SECONDS: String(idx.context.nonce_ttl_seconds),
-    EPOCH_SECONDS: "600",
     NULLIFIER_MAX_PER_EPOCH: "1",
+    ZK_RATE_LIMIT_PER_MIN: "100000",
   });
   const clock = new gw.FakeClock(Number(nowS ?? st.now) * 1000);
   const registry = new gw.FakeRegistry(root ?? st.current_root);
   const sink = h.logSink();
   // No redaction: the floor must hold for the gateway's raw log output, not only after redaction.
   const logger = gw.pino({ level: "trace" }, sink.stream);
-  const { app, ctx } = gw.createApp({ config, clock, registry, logger, testOverrides: { profile } });
-  const art = ctx.artifacts();
-  if (art.status !== "ready" || !art.reviewed) throw new Error(`gateway refused the v4 artefacts: ${art.status} ${art.detail || ""}`);
-  if (!ctx.pipeline.authorizationEligible().eligible) {
-    throw new Error(`gateway is not authorization-eligible: ${ctx.pipeline.authorizationEligible().missing.join("; ")}`);
+  const { app, ctx } = gw.createApp({ config, clock, registry, logger });
+  if (ctx.profile.id !== PROFILE_ID) throw new Error(`gateway runs profile ${ctx.profile.id}, expected ${PROFILE_ID}`);
+  if (ctx.profile.signals.join(",") !== idx.public_signals.join(",")) {
+    throw new Error(`gateway v4 signal order [${ctx.profile.signals}] != fixtures.json [${idx.public_signals}]`);
   }
+  const art = ctx.artifacts();
+  if (art.status !== "ready") throw new Error(`gateway refused the v4 artefacts: ${art.status} ${art.detail || ""}`);
+  const elig = ctx.pipeline.authorizationEligible();
+  if (!elig.eligible) throw new Error(`gateway is not authorization-eligible: ${elig.missing.join("; ")}`);
 
-  /** POST /api/zk/challenges for a fixtures.json resource name; checks the policy against the contract. */
+  const http = () => gw.request(app);
+  /** GET /challenge for a fixtures.json resource name; checks the challenge against the contract. */
   const challenge = async (resourceName) => {
-    const res = await gw.request(app).post("/api/zk/challenges").set("content-type", "application/json").send({ resource: gatewayResource(resourceName) });
-    if (res.status !== 201) throw new Error(`challenge refused: ${res.status} ${JSON.stringify(res.body)}`);
+    const res = await http().get(`/challenge?resource=${encodeURIComponent(resourceName)}`);
+    if (res.status !== 200) throw new Error(`challenge refused: ${res.status} ${JSON.stringify(res.body)}`);
     const want = idx.context.resources[resourceName];
-    const got = res.body;
-    const mismatch = ["roleMask", "deptMask", "minClearance", "requireDevice"].filter((k) => got.policy[k] !== String(want[k]));
-    if (got.resourceField !== String(want.resourceId) || mismatch.length) {
-      throw new Error(`gateway policy for ${resourceName} differs from fixtures.json context: ${mismatch.join(",")} resourceField ${got.resourceField}`);
+    const c = res.body;
+    const bad = ["roleMask", "deptMask", "minClearance", "requireDevice"].filter((k) => c.policy[k] !== want[k]);
+    if (c.resourceId !== want.resourceId || bad.length) {
+      throw new Error(`gateway policy for ${resourceName} differs from fixtures.json context: ${bad.join(",")} resourceId ${c.resourceId}`);
     }
-    return got;
+    return c;
   };
-  /** The gateway issued `nonce` with this challenge (see the header: the RNG drew it). */
-  const plantNonce = (challengeId, nonce) => {
-    const stored = ctx.challenges.peek(challengeId);
+  /** Rebind the challenge the gateway issued with `issuedNonce` to `nonce` (see the header). */
+  const plantNonce = (issuedNonce, nonce) => {
+    const store = ctx.challenges;
+    const id = store.idForNonce(issuedNonce);
+    const stored = id && store.peek(id);
     if (!stored || stored.state !== "issued") throw new Error("no fresh challenge to bind the fixture nonce to");
+    if (!(store.byNonce instanceof Map)) throw new Error("ChallengeStore has no byNonce index: update gateway-harness.js plantNonce");
+    store.byNonce.delete(issuedNonce);
     stored.nonce = nonce;
+    store.byNonce.set(nonce, id);
+    return stored;
   };
-  const verify = (body) => gw.request(app).post("/api/zk/verify").set("content-type", "application/json").send(body);
+  /** POST /access; resolves {res, status, admitted, code, reason, cid, event} (event: verification.completed). */
+  const access = async (body) => {
+    const res = await http().post("/access").set("content-type", "application/json").send(body);
+    const cid = res.body && res.body.correlationId;
+    const event = cid ? ctx.bus.recent(10_000).find((e) => e.type === "verification.completed" && e.correlationId === cid) : undefined;
+    const err = (res.body && res.body.error) || {};
+    return { res, status: res.status, admitted: res.body && res.body.admitted === true, code: err.code, reason: err.reason, cid, event };
+  };
   /**
-   * Issue a challenge for `presentedTo` (default: the fixture's presented_to), bind the fixture's
-   * nonce to it, and submit the committed proof. Resolves {res, body, challengeId}.
+   * The client path for a committed fixture: GET /challenge for `presentedTo` (default: the
+   * fixture's presented_to), bind the fixture's nonce to it, POST /access with the committed proof.
    */
   const present = async (name, { presentedTo, proof, publicSignals } = {}) => {
     const meta = idx.fixtures[name];
     const fx = h.fixture(meta.dir);
-    const c = await challenge(presentedTo || meta.presented_to);
-    plantNonce(c.challengeId, meta.nonce);
-    const body = { challengeId: c.challengeId, proof: proof || fx.proof, publicSignals: publicSignals || fx.publicSignals };
-    const res = await verify(body);
-    return { res, body, challengeId: c.challengeId };
+    const to = presentedTo || meta.presented_to;
+    const c = await challenge(to);
+    plantNonce(c.nonce, meta.nonce);
+    const body = { resource: to, nonce: meta.nonce, proof: proof || fx.proof, publicSignals: publicSignals || fx.publicSignals };
+    return { ...(await access(body)), body, challenge: c };
   };
-  return { app, ctx, clock, registry, sink, idx, profile, challenge, plantNonce, verify, present, gw };
+  /** Let the gateway's async root-change handler (session revocation) run. */
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  return { app, ctx, clock, registry, sink, idx, challenge, plantNonce, access, present, settle, gw };
 }
 
 /** Stop the bn128 worker threads p3's snarkjs started (one curve per process). */
@@ -205,4 +171,4 @@ async function shutdown() {
   delete globalThis.curve_bn128;
 }
 
-module.exports = { loadGateway, makeGateway, assertP3Setup, gatewayResource, shutdown, SETUP, OPERATOR_TOKEN };
+module.exports = { loadGateway, makeGateway, assertP3Setup, shutdown, SETUP, OPERATOR_TOKEN };

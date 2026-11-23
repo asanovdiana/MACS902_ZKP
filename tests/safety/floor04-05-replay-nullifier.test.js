@@ -83,84 +83,87 @@ describe("floor 4: replay (circuit and fixture half)", () => {
   });
 
   test("F4.06 gateway denies a used nonce and an expired nonce (TTL 120 s)", async () => {
-    // Real P3 gateway in-process (tests/safety/gateway-harness.js), real Groth16, injectable clock.
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
+    // real Groth16, the client path GET /challenge + POST /access, injectable clock.
     const gwh = require("./gateway-harness");
     const TTL = idx.context.nonce_ttl_seconds;
     assert.equal(TTL, 120);
+    const fx = h.fixture("alice_wiki");
+    const N = idx.fixtures.alice_wiki.nonce;
     const granted = (r, what) => {
-      assert.equal(r.status, 200, `${what}: ${JSON.stringify(r.body)}`);
-      assert.equal(r.body.decision, "granted");
-      assert.equal(r.body.groth16.valid, true);
+      assert.equal(r.status, 200, `${what}: ${JSON.stringify(r.res.body)}`);
+      assert.equal(r.admitted, true, what);
+      assert.equal(r.event.groth16Valid, true, what);
+    };
+    const refused = (r, status, code, reason, what) => {
+      assert.equal(r.status, status, `${what}: ${JSON.stringify(r.res.body)}`);
+      assert.equal(r.code, code, what);
+      if (reason) assert.equal(r.reason, reason, what);
+      assert.notEqual(r.admitted, true, what);
     };
     try {
       // used nonce: replay of alice_wiki
       const gw = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state });
       const first = await gw.present("alice_wiki");
-      granted(first.res, "first presentation");
-      const replay = await gw.verify(first.body);
-      assert.equal(replay.status, 409);
-      assert.equal(replay.body.reason, "CHALLENGE_REPLAYED");
-      assert.equal(replay.body.decision, "denied");
-      assert.equal(replay.body.groth16.valid, null, "a replay must be refused before verification");
-      // re-randomised proof (-A, -B, C) on the same challenge: still a replay (state not keyed on proof bytes)
+      granted(first, "first presentation");
+      const replay = await gw.access(first.body);
+      refused(replay, 403, "NONCE_USED", "CHALLENGE_REPLAYED", "replay");
+      assert.equal(replay.event.groth16Valid, null, "a replay must be refused before verification");
+      // re-randomised proof (-A, -B, C) with the used nonce: still a replay (state not keyed on proof bytes)
       const neg = (y) => ((FQ - BigInt(y)) % FQ).toString();
-      const p = JSON.parse(JSON.stringify(first.body.proof));
+      const p = JSON.parse(JSON.stringify(fx.proof));
       p.pi_a[1] = neg(p.pi_a[1]);
       p.pi_b[1] = [neg(p.pi_b[1][0]), neg(p.pi_b[1][1])];
-      const mall = await gw.verify({ ...first.body, proof: p });
-      assert.equal(mall.status, 409);
-      assert.equal(mall.body.reason, "CHALLENGE_REPLAYED");
-      // the used proof on a NEW challenge (fresh gateway nonce): not bound to it
+      refused(await gw.access({ ...first.body, proof: p }), 403, "NONCE_USED", "CHALLENGE_REPLAYED", "re-randomised replay");
+      // the used proof against a NEW challenge's (fresh, gateway-drawn) nonce: not bound to it
       const c = await gw.challenge("wiki");
-      assert.notEqual(c.nonce, idx.fixtures.alice_wiki.nonce);
-      const onFresh = await gw.verify({ ...first.body, challengeId: c.challengeId });
-      assert.equal(onFresh.status, 403);
-      assert.equal(onFresh.body.reason, "NONCE_MISMATCH");
-      // a non-canonical spelling of the used nonce is refused before verification
-      const c2 = await gw.challenge("wiki");
-      const spelt = [...first.body.publicSignals];
+      assert.notEqual(c.nonce, N);
+      refused(await gw.access({ ...first.body, nonce: c.nonce }), 403, "CHALLENGE_MISMATCH", "NONCE_MISMATCH", "old proof, new nonce");
+      // a non-canonical spelling of the used nonce is refused before any state lookup
+      refused(await gw.access({ ...first.body, nonce: "0" + N }), 400, "MALFORMED_REQUEST", null, "non-canonical nonce");
+      const spelt = [...fx.publicSignals];
       spelt[9] = "0" + spelt[9];
-      const nc = await gw.verify({ ...first.body, challengeId: c2.challengeId, publicSignals: spelt });
-      assert.equal(nc.status, 400);
-      assert.equal(nc.body.reason, "INVALID_REQUEST");
+      const c2 = await gw.challenge("wiki");
+      refused(await gw.access({ ...first.body, nonce: c2.nonce, publicSignals: spelt }), 400, "MALFORMED_REQUEST", null, "non-canonical signal");
+      // a nonce this gateway never issued
+      refused(await gw.access({ ...first.body, nonce: "123456789" }), 403, "NONCE_UNKNOWN", null, "unknown nonce");
       assert.equal(gw.ctx.sessions.size, 1, "only the first presentation may hold a session");
       assert.ok(gw.ctx.bus.recent().some((e) => e.type === "replay.rejected"));
 
       // expired nonce: the challenge TTL is the contract's 120 s
       const exp = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state });
       const ch = await exp.challenge("wiki");
-      assert.equal(Date.parse(ch.expiresAt) - Date.parse(ch.issuedAt), TTL * 1000);
-      exp.plantNonce(ch.challengeId, idx.fixtures.alice_wiki.nonce);
+      const stored = exp.plantNonce(ch.nonce, N);
+      assert.equal(stored.expiresAt - stored.createdAt, TTL * 1000);
+      assert.equal(String(ch.now), idx.fixtures.alice_wiki.gateway_state.now);
       exp.clock.advance((TTL + 1) * 1000);
-      const fx = h.fixture("alice_wiki");
-      const late = await exp.verify({ challengeId: ch.challengeId, proof: fx.proof, publicSignals: fx.publicSignals });
-      assert.equal(late.status, 403);
-      assert.equal(late.body.reason, "CHALLENGE_EXPIRED");
-      assert.equal(late.body.decision, "denied");
+      const body = { resource: "wiki", nonce: N, proof: fx.proof, publicSignals: fx.publicSignals };
+      refused(await exp.access(body), 403, "NONCE_EXPIRED", "CHALLENGE_EXPIRED", "TTL + 1 s");
       assert.equal(exp.ctx.sessions.size, 0);
-      // an expired challenge is burnt: presenting it again is a replay, not a second chance
-      const lateAgain = await exp.verify({ challengeId: ch.challengeId, proof: fx.proof, publicSignals: fx.publicSignals });
-      assert.equal(lateAgain.status, 409);
+      // an expired nonce is burnt: presenting it again is a replay, not a second chance
+      refused(await exp.access(body), 403, "NONCE_USED", "CHALLENGE_REPLAYED", "expired, again");
       // control: within the TTL (TTL - 1 s) the same proof is admitted, so the denial above is the TTL's
       const inTime = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state });
-      const ch2 = await inTime.challenge("wiki");
-      inTime.plantNonce(ch2.challengeId, idx.fixtures.alice_wiki.nonce);
+      inTime.plantNonce((await inTime.challenge("wiki")).nonce, N);
       inTime.clock.advance((TTL - 1) * 1000);
-      granted(await inTime.verify({ challengeId: ch2.challengeId, proof: fx.proof, publicSignals: fx.publicSignals }), "within TTL");
+      granted(await inTime.access(body), "within TTL");
 
-      // expired now: stale_now_alice_wiki (a proof whose now/epoch are 90 days old) at gateway_now
+      // expired now: stale_now_alice_wiki (now/epoch 90 days old) at gateway_now
       const meta = idx.fixtures.stale_now_alice_wiki;
       const stale = await gwh.makeGateway({ state: meta.gateway_state });
       const s = await stale.present("stale_now_alice_wiki");
-      assert.equal(s.res.status, 403, JSON.stringify(s.res.body));
-      assert.equal(s.res.body.decision, "denied");
-      assert.ok(["EPOCH_MISMATCH", "TIME_OUT_OF_RANGE"].includes(s.res.body.reason), s.res.body.reason);
+      refused(s, 403, "CHALLENGE_MISMATCH", null, "stale now");
+      assert.ok(["EPOCH_MISMATCH", "TIME_MISMATCH"].includes(s.reason), s.reason);
       assert.equal(stale.ctx.sessions.size, 0);
       assert.equal(stale.ctx.nullifiers.size, 0);
+      // now must EQUAL the challenge's now: one second off, in the same epoch, is denied
+      const off = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state, nowS: Number(idx.fixtures.alice_wiki.gateway_state.now) + 1 });
+      const o = await off.present("alice_wiki");
+      refused(o, 403, "CHALLENGE_MISMATCH", "TIME_MISMATCH", "now off by 1 s");
       // control: at the proof's own (old) clock it would be admitted, so only freshness stops it
       const oldNow = h.fixture(meta.dir).publicSignals[8];
       const past = await gwh.makeGateway({ state: meta.gateway_state, nowS: oldNow });
-      granted((await past.present("stale_now_alice_wiki")).res, "stale_now at its own clock");
+      granted(await past.present("stale_now_alice_wiki"), "stale_now at its own clock");
     } finally {
       await gwh.shutdown();
     }
@@ -232,45 +235,49 @@ describe("floor 5: nullifier (circuit and fixture half)", () => {
   });
 
   test("F5.07 gateway rate-limits (nullifier, epoch) to one admission per epoch", async () => {
-    // Real P3 gateway in-process (tests/safety/gateway-harness.js), real Groth16 verification.
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
+    // real Groth16, the client path GET /challenge + POST /access.
     const gwh = require("./gateway-harness");
     const A = idx.fixtures.same_epoch_a;
     const B = idx.fixtures.same_epoch_b;
     assert.equal(A.expect, "accept");
     assert.equal(B.expect, "reject");
     assert.deepEqual(B.present_after, ["same_epoch_a"]);
+    const limited = (r, what) => {
+      assert.equal(r.status, 429, `${what}: ${JSON.stringify(r.res.body)}`);
+      assert.equal(r.code, "RATE_LIMITED", what);
+      assert.equal(r.reason, "NULLIFIER_RATE_LIMITED", what);
+      assert.notEqual(r.admitted, true, what);
+    };
     try {
       const gw = await gwh.makeGateway({ state: A.gateway_state });
       const a = await gw.present("same_epoch_a");
-      assert.equal(a.res.status, 200, JSON.stringify(a.res.body));
-      assert.equal(a.res.body.decision, "granted");
+      assert.equal(a.status, 200, JSON.stringify(a.res.body));
+      assert.equal(a.admitted, true);
       assert.equal(gw.ctx.nullifiers.size, 1);
       const b = await gw.present("same_epoch_b");
-      assert.equal(b.res.status, 429, JSON.stringify(b.res.body));
-      assert.equal(b.res.body.decision, "denied");
-      assert.equal(b.res.body.reason, "NULLIFIER_RATE_LIMITED");
-      assert.equal(b.res.body.groth16.valid, true, "b is a valid proof: the denial is the rate limit's");
+      limited(b, "same_epoch_b");
+      assert.equal(b.event.groth16Valid, true, "b is a valid proof: the denial is the rate limit's");
       assert.equal(gw.ctx.sessions.size, 1, "the second proof must not get a session");
       assert.ok(gw.ctx.bus.recent().some((e) => e.type === "nullifier.rate_limited" && e.nullifier === h.fixture("same_epoch_b").publicSignals[0]));
       // every other Alice -> Wiki proof of this epoch shares the nullifier and is rate-limited too
-      const ali = await gw.present("alice_wiki");
-      assert.equal(ali.res.status, 429);
+      limited(await gw.present("alice_wiki"), "alice_wiki");
       // a different service is a different nullifier: Alice -> File Share is still admitted
       const fsh = await gw.present("alice_file_share");
-      assert.equal(fsh.res.status, 200, JSON.stringify(fsh.res.body));
+      assert.equal(fsh.status, 200, JSON.stringify(fsh.res.body));
       // another user on the same service is unaffected
       const carol = await gw.present("carol_wiki");
-      assert.equal(carol.res.status, 200, JSON.stringify(carol.res.body));
+      assert.equal(carol.status, 200, JSON.stringify(carol.res.body));
 
       // concurrent submission of a and b: exactly one admission (the check-and-record is atomic)
       const race = await gwh.makeGateway({ state: A.gateway_state });
       const rs = await Promise.all(["same_epoch_a", "same_epoch_b"].map((n) => race.present(n)));
-      assert.deepEqual(rs.map((r) => r.res.status).sort(), [200, 429]);
+      assert.deepEqual(rs.map((r) => r.status).sort(), [200, 429]);
       assert.equal(race.ctx.sessions.size, 1);
       // order does not matter: b first is admitted, then a is rate-limited
       const rev = await gwh.makeGateway({ state: A.gateway_state });
-      assert.equal((await rev.present("same_epoch_b")).res.status, 200);
-      assert.equal((await rev.present("same_epoch_a")).res.status, 429);
+      assert.equal((await rev.present("same_epoch_b")).status, 200);
+      limited(await rev.present("same_epoch_a"), "a after b");
     } finally {
       await gwh.shutdown();
     }

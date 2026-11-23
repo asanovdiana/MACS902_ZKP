@@ -140,46 +140,47 @@ describe("floor 7: logs and state hold no identity attributes", () => {
   });
 
   test("F7.05 gateway log and state hold no username, email, role, department or clearance", async () => {
-    // Real P3 gateway in-process (tests/safety/gateway-harness.js), real Groth16, a run of admits
-    // and denials over every committed v4 fixture; then its raw (unredacted) log output and its
-    // whole in-memory state (challenges, nullifiers, sessions, event history, root history) are
-    // scanned for the fixture personas' identity and attributes.
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
+    // real Groth16, the client path GET /challenge + POST /access. A run of admits and denials over
+    // every committed v4 fixture; then its raw (unredacted) log output and its whole in-memory state
+    // (challenges, nullifiers, sessions, event history, root history) are scanned for the fixture
+    // personas' identity and attributes.
     const gwh = require("./gateway-harness");
     const idx = h.fixtureIndex();
     const vec = h.vectorsV4();
     try {
       const gw = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state });
       const st = {};
-      const run = async (name, opts) => {
-        const r = await gw.present(name, opts);
-        st[name] = r.res.status;
-        return r;
-      };
+      const rec = (k, r) => { st[k] = `${r.status} ${r.code || (r.admitted ? "admitted" : "?")}`; return r; };
+      const run = async (name, opts) => rec(name, await gw.present(name, opts));
       // admits
       for (const n of ["alice_wiki", "alice_file_share", "carol_admin_panel", "carol_wiki", "bob_wiki"]) await run(n);
-      // denials: replay, forged issuer, stale now, same nullifier, wrong service, malformed, unknown challenge
-      const first = await gw.present("alice_file_share"); // same nullifier, same epoch
-      st.dup_file_share = first.res.status;
-      const replay = await gw.verify(first.body);
-      st.replay = replay.status;
+      // denials: rate limit, replay, forged issuer, stale now, wrong service, malformed, unknown nonce/resource
+      const again = await gw.present("alice_file_share"); // same nullifier, same epoch
+      rec("dup_file_share", again);
+      rec("replay", await gw.access(again.body));
       await run("forged_issuer_alice_wiki");
       await run("stale_now_alice_wiki");
       await run("same_epoch_a");
       await run("same_epoch_b");
       await run("wrong_service_alice_wiki_as_admin");
-      st.malformed = (await gw.verify({ challengeId: "x", proof: {}, publicSignals: ["01"] })).status;
-      st.unknown = (await gw.verify({ ...first.body, challengeId: "A".repeat(24) })).status;
+      rec("malformed", await gw.access({ resource: "wiki", nonce: "01", proof: {}, publicSignals: ["01"] }));
+      rec("unknown_nonce", await gw.access({ ...again.body, nonce: "987654321" }));
+      rec("unknown_resource", await gw.access({ ...again.body, resource: "payroll" }));
       // revocation, then a revoked credential's proof
-      gw.registry.setRoot(idx.context.root_after_bob_revoked);
+      gw.registry.setRoot(idx.context.root_after_bob_revoked, "revoke");
+      await gw.settle();
       await run("stale_root_bob_wiki");
 
       assert.deepEqual(
         { ...st },
         {
-          alice_wiki: 200, alice_file_share: 200, carol_admin_panel: 200, carol_wiki: 200, bob_wiki: 200,
-          dup_file_share: 429, replay: 409, forged_issuer_alice_wiki: 403, stale_now_alice_wiki: 403,
-          same_epoch_a: 429, same_epoch_b: 429, wrong_service_alice_wiki_as_admin: 403, malformed: 400,
-          unknown: 403, stale_root_bob_wiki: 403,
+          alice_wiki: "200 admitted", alice_file_share: "200 admitted", carol_admin_panel: "200 admitted",
+          carol_wiki: "200 admitted", bob_wiki: "200 admitted",
+          dup_file_share: "429 RATE_LIMITED", replay: "403 NONCE_USED", forged_issuer_alice_wiki: "403 ISSUER_NOT_PINNED",
+          stale_now_alice_wiki: "403 CHALLENGE_MISMATCH", same_epoch_a: "429 RATE_LIMITED", same_epoch_b: "429 RATE_LIMITED",
+          wrong_service_alice_wiki_as_admin: "403 POLICY_MISMATCH", malformed: "400 MALFORMED_REQUEST",
+          unknown_nonce: "403 NONCE_UNKNOWN", unknown_resource: "404 UNKNOWN_RESOURCE", stale_root_bob_wiki: "403 ROOT_NOT_CURRENT",
         },
         "the run must mix admissions and every denial path",
       );
@@ -207,7 +208,11 @@ describe("floor 7: logs and state hold no identity attributes", () => {
       // configuration, identical for every user (contract obligation 8: "the policy fields are the
       // service's, not the user's"). Taken from the gateway itself and cut out before the label scan.
       const summaries = [];
-      for (const r of Object.keys(idx.context.resources)) summaries.push((await gw.challenge(r)).policy.summary);
+      for (const r of Object.keys(idx.context.resources)) {
+        const res = await gw.gw.request(gw.app).post("/api/zk/challenges").set("content-type", "application/json").send({ resource: r.replace(/_/g, "-") });
+        assert.equal(res.status, 201, JSON.stringify(res.body));
+        summaries.push(res.body.policy.summary);
+      }
       assert.equal(summaries.length, 3);
       const unpolicy = (s) => summaries.reduce((acc, x) => acc.split(x).join(" "), s);
 
@@ -279,7 +284,7 @@ describe("floor 7: logs and state hold no identity attributes", () => {
       check("gateway state text", [["state", null, JSON.stringify(state.events)]]);
 
       // the event history carries public signals only: every signal name is a contract name
-      const allowedSignals = new Set(gw.profile.signals);
+      const allowedSignals = new Set(gw.ctx.profile.signals);
       for (const e of state.events) for (const s of e.publicSignals || []) assert.ok(allowedSignals.has(s.name), `event signal ${s.name}`);
     } finally {
       await gwh.shutdown();

@@ -122,34 +122,37 @@ limitation, so it is not an overstatement, but `circuits` should align the wordi
 ### R-008: gateway floor tests against the real P3 gateway (todo -> real)
 
 The P3 gateway is now in the tree (`p3/gateway`). The four gateway tests kept their ID and title;
-only the `todo` option and the empty body were replaced. Each drives the real gateway in-process
-(`createApp` with an injected `FakeClock`, the gateway's own `FakeRegistry`, a captured pino logger
-and the existing `testOverrides.profile` seam), over HTTP (supertest), with the real snarkjs
-verifier, the gateway's own artefact loader (manifest + vkey sha256) and the committed
-`circuits/fixtures/v4` proofs, vkey and `fixtures.json`, all read from disk at test time. New file:
-`gateway-harness.js` (not a test file; no new IDs).
+only the `todo` option and the empty body were replaced. Each drives the real gateway in-process in
+its production v4 configuration: the built-in `integrated-access-v4` profile (`ZK_PROFILE`), the
+default artefact manifest (`circuits/setup/integrated_access_v4.manifest.json`, integrity-checked by
+the gateway's own loader; `ALLOW_DEMO_KEYS` because the key is DEV/DEMO-ONLY), the pinned issuer
+from `fixtures.json` `context.pinned_issuer`, the real snarkjs verifier, and the path the team client
+takes: `GET /challenge` then `POST /access` (`p3/gateway/src/routes/teamAccess.ts`), over HTTP
+(supertest). Injected through `createApp`'s existing deps: a `FakeClock`, the gateway's own
+`FakeRegistry` (issuer.api staleness rule: insert keeps a root acceptable, revoke does not) and a
+captured, unredacted pino logger. Proofs, public signals and `fixtures.json` are the committed
+`circuits/fixtures/v4` files read at test time; nothing is hard-coded. New file:
+`gateway-harness.js` (not a test file; no new IDs). It fails, never skips, without p3's
+dependencies or with a missing or stale `p3/shared/dist`.
 
 | ID | What changed and why |
 |---|---|
-| F3.09 | todo -> real: `stale_root_bob_wiki` at its `gateway_state` (current root = `root_after_bob_revoked`) is `403 ROOT_MISMATCH`, no session, no nullifier recorded, no cookie; same for `bob_wiki`. Control: the same proof is admitted at `root_before_revocation`; moving the root revokes that live session at once (`session.revoked REGISTRY_ROOT_CHANGED`) and a re-presentation is `ROOT_MISMATCH`. Registry down: `503 REGISTRY_UNAVAILABLE`, fail closed |
-| F4.06 | todo -> real: replay of `alice_wiki` is `409 CHALLENGE_REPLAYED` before verification, also with a re-randomised `(-A,-B,C)` proof; the used proof on a new challenge is `NONCE_MISMATCH`; a non-canonical nonce spelling is `400` before verification; one session only. Expired: challenge TTL is exactly `nonce_ttl_seconds` (120 s); at TTL + 1 s `403 CHALLENGE_EXPIRED` and the challenge is burnt (`409` after); control at TTL - 1 s admitted. `stale_now_alice_wiki` at `gateway_now` is denied (`EPOCH_MISMATCH`/`TIME_OUT_OF_RANGE`), no session, no nullifier; control: admitted only at its own old clock |
-| F5.07 | todo -> real: `same_epoch_a` admitted, then `same_epoch_b` `429 NULLIFIER_RATE_LIMITED` although its proof verifies, one session, `nullifier.rate_limited` event; `alice_wiki` in the same epoch also 429; `alice_file_share` (other nullifier) and `carol_wiki` (other user) still admitted; a and b submitted concurrently: exactly one 200; reverse order: b admitted, a limited |
-| F7.05 | todo -> real: one gateway run over every v4 fixture (5 admissions; replay, rate limit, forged issuer, stale now, wrong service, malformed, unknown challenge, revoked root denials). The raw (unredacted) pino log and the whole in-memory state (challenges, nullifiers, sessions, event history, root history, registry, operator) are walked: no identity key (username, email, role, dept/department, clearance, attributes, ...), no email-shaped value, no persona name, no role/department label of the fixture personas (the services' own policy summaries excepted, obligation 8), and no persona secret, salt, commitment, attrHash, signature or Merkle sibling. Checked to fail on an injected `clearance` log field, an email in a log message, a department label in an event and a `dept` key on a stored challenge |
+| F3.09 | todo -> real: `stale_root_bob_wiki` and `bob_wiki` at the fixture's `gateway_state` (current root `root_after_bob_revoked`) are `403 ROOT_NOT_CURRENT` (`ROOT_MISMATCH`) before verification, no session, no nullifier, no cookie. Control: the same proof is admitted at `root_before_revocation`; a revoke moves the root, the live session is revoked (`session.revoked REGISTRY_REVOCATION`) and a re-presentation is `ROOT_NOT_CURRENT`. Revoke followed by inserts still denies (the staleness rule never re-admits a revoked leaf); an insert-only supersession still admits. Registry down: `503 AUTHORIZATION_UNAVAILABLE`, fail closed |
+| F4.06 | todo -> real: replay of `alice_wiki` is `403 NONCE_USED` before verification, also with a re-randomised `(-A,-B,C)` proof; the used proof against a fresh gateway nonce is `CHALLENGE_MISMATCH` (`NONCE_MISMATCH`); a non-canonical nonce or signal is `400 MALFORMED_REQUEST`; a never-issued nonce is `NONCE_UNKNOWN`; one session only. Expired: TTL is exactly `nonce_ttl_seconds` (120 s); at TTL + 1 s `403 NONCE_EXPIRED` and the nonce is burnt (`NONCE_USED` after); control at TTL - 1 s admitted. `stale_now_alice_wiki` at `gateway_now` is `CHALLENGE_MISMATCH` (`EPOCH_MISMATCH`/`TIME_MISMATCH`), no session, no nullifier; `now` one second off within the epoch is `TIME_MISMATCH` (equality, obligation 5); control: admitted only at its own old clock |
+| F5.07 | todo -> real: `same_epoch_a` admitted, then `same_epoch_b` `429 RATE_LIMITED` (`NULLIFIER_RATE_LIMITED`) although its proof verifies (`verification.completed groth16Valid`), one session, `nullifier.rate_limited` event; `alice_wiki` in the same epoch also 429; `alice_file_share` (other nullifier) and `carol_wiki` (other user) still admitted; a and b concurrently: exactly one 200; reverse order: b admitted, a limited |
+| F7.05 | todo -> real: one gateway run over every v4 fixture (5 admissions; rate limit, replay, forged issuer, stale now, wrong service, malformed, unknown nonce, unknown resource and revoked-root denials, each with its expected team code). The raw (unredacted) pino log and the whole in-memory state (challenges, nullifiers, sessions, event history, root history, registry, operator) are walked: no identity key (username, email, role, dept/department, clearance, attributes, ...), no email-shaped value, no persona name, no role/department label of the fixture personas (the services' own policy summaries excepted, obligation 8), and no persona secret, salt, commitment, attrHash, signature or Merkle sibling. Checked to fail on an injected `clearance` log field, an email in a log message, a department label in an event, a `dept` key on a stored challenge and a persona commitment in a log line |
 
 Seams and gaps, stated plainly (for `gateway`):
 
-- **No v4 profile in the gateway.** P3 ships `p1-integrated-v3` and the proposed `zkag-access-v1`,
-  whose signal order differs from `access.public_signals v4`. The harness builds the v4 profile
-  from `fixtures.json` `public_signals` (`now` -> the gateway's `currentTime`) through
-  `testOverrides.profile`; the pipeline looks signals up by name, so every check above is the
-  gateway's own code. Once `gateway` adds a v4 profile, the harness should use it.
-- **Fixture nonce.** The gateway draws a random nonce; the harness issues a real challenge and then
-  sets that stored challenge's nonce to the fixture's (`ctx.challenges.peek`), i.e. "the RNG drew
-  it". Every other challenge property is the gateway's.
-- **Obligation 5 is enforced as a skew bound, not equality.** The gateway does not store `now`
-  with the challenge; it checks `|now - clock| <= CLOCK_SKEW_SECONDS` and epoch equality. F4.06
-  asserts the denial of `stale_now_alice_wiki`, which this satisfies; exact `now` equality is not
-  asserted (it would fail today).
+- **Fixture nonce (the one remaining seam).** The gateway draws a random 128-bit nonce and has no
+  injection point for it. After a real `GET /challenge`, the harness rebinds that stored challenge
+  to the fixture's nonce (the challenge object and the store's private `byNonce` index), i.e. "the
+  RNG drew it". Every other challenge field (id, resource, `now`, epoch, TTL, single-use state) is
+  the gateway's. A `testOverrides` nonce source in `createApp` would remove the private-field access.
+- Resolved since the first version of these tests: the gateway now ships the
+  `integrated-access-v4` profile (contract signal order; the harness asserts it equals
+  `fixtures.json` `public_signals`), so no profile is injected; and obligation 5 is enforced as
+  equality (`now` and `epoch` stored with the challenge, `TIME_MISMATCH`/`EPOCH_MISMATCH`), which
+  F4.06 now asserts.
 - **Rate-limit key.** The gateway keys `(resource, epoch, nullifier)`; since `resourceId` feeds the
   nullifier this is equivalent to the contract's `(nullifier, epoch)`.
-

@@ -82,7 +82,52 @@ describe("floor 4: replay (circuit and fixture half)", () => {
     }
   });
 
-  test("F4.06 gateway denies a used nonce and an expired nonce (TTL 120 s)", { todo: "gateway (P3) not in this repository; replay of alice_wiki and stale_now_alice_wiki are its test inputs" }, () => {});
+  test("F4.06 gateway denies a used nonce and an expired nonce (TTL 120 s)", async (t) => {
+    // P3 gateway half of floor 4 (obligation 6). Real gateway, issuer, client prover and verifier;
+    // the shared clock makes the 120 s TTL deterministic (no sleeping).
+    const gw = require("./gateway");
+  const ATTR = {
+    alice: { role: "engineer", dept: "engineering", clearance: 2, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    bob: { role: "contractor", dept: "operations", clearance: 1, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    carol: { role: "admin", dept: "it", clearance: 3, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+  };
+    const g = await gw.startGateway();
+    t.after(() => g.close());
+    for (const n of ["alice", "carol"]) await g.enrol(n, ATTR[n]);
+
+    // used nonce: admitted once, the identical request again is NONCE_USED
+    const p = await g.prove("alice", "wiki");
+    assert.equal((await g.access("wiki", p)).status, 200);
+    const replay = await g.access("wiki", p);
+    assert.equal(replay.status, 403);
+    assert.equal(replay.body.error.code, "NONCE_USED");
+
+    // concurrent replay: four identical requests in flight, exactly one admitted
+    const q = await g.prove("alice", "file_share");
+    const all = await Promise.all([1, 2, 3, 4].map(() => g.access("file_share", q)));
+    assert.equal(all.filter((r) => r.status === 200).length, 1, all.map((r) => r.status).join(","));
+    assert.ok(all.filter((r) => r.status !== 200).every((r) => r.body.error.code === "NONCE_USED"));
+
+    // boundary: presented exactly at the TTL (120 s) -> still valid
+    const atTtl = await g.prove("carol", "wiki");
+    g.clock.advance(120);
+    const b = await g.access("wiki", atTtl);
+    assert.equal(b.status, 200, `nonce at exactly 120 s must still be accepted: ${JSON.stringify(b.body)}`);
+
+    // expired: presented 121 s after issue -> NONCE_EXPIRED, and the nonce is burnt
+    const late = await g.prove("carol", "admin_panel");
+    g.clock.advance(121);
+    const e = await g.access("admin_panel", late);
+    assert.equal(e.status, 403);
+    assert.equal(e.body.error.code, "NONCE_EXPIRED");
+    assert.equal((await g.access("admin_panel", late)).body.error.code, "NONCE_USED");
+
+    // a nonce this gateway never issued (committed fixture, or a made-up one) -> NONCE_UNKNOWN
+    assert.equal((await g.access("wiki", h.fixture("alice_wiki"))).body.error.code, "NONCE_UNKNOWN");
+    const forgedNonce = { ...p, publicSignals: [...p.publicSignals] };
+    forgedNonce.publicSignals[9] = "1234567890123456789";
+    assert.equal((await g.access("wiki", forgedNonce)).body.error.code, "NONCE_UNKNOWN");
+  });
 });
 
 describe("floor 5: nullifier (circuit and fixture half)", () => {
@@ -149,7 +194,54 @@ describe("floor 5: nullifier (circuit and fixture half)", () => {
     assert.equal(h.fixture("stale_now_alice_wiki").publicSignals[0], await zk.nullifier(s, 1, h.fixture("stale_now_alice_wiki").publicSignals[11]));
   });
 
-  test("F5.07 gateway rate-limits (nullifier, epoch) to one admission per epoch", { todo: "gateway (P3) not in this repository; same_epoch_a then same_epoch_b is its test input" }, () => {});
+  test("F5.07 gateway rate-limits (nullifier, epoch) to one admission per epoch", async (t) => {
+    // P3 gateway half of floor 5 (obligation 7). Real proofs; the shared clock crosses epochs.
+    const gw = require("./gateway");
+  const ATTR = {
+    alice: { role: "engineer", dept: "engineering", clearance: 2, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    bob: { role: "contractor", dept: "operations", clearance: 1, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    carol: { role: "admin", dept: "it", clearance: 3, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+  };
+    // start 10 minutes before an epoch boundary minus 300 s, so the first part stays in one epoch
+    const g = await gw.startGateway({ t0: 1_800_000_000 - (1_800_000_000 % 600) + 60 });
+    t.after(() => g.close());
+    for (const n of ["alice", "carol"]) await g.enrol(n, ATTR[n]);
+
+    // first admission in the epoch
+    const a = await g.access("wiki", await g.prove("alice", "wiki"));
+    assert.equal(a.status, 200, JSON.stringify(a.body));
+    // same user, same service, same epoch, FRESH nonce -> same nullifier -> rate limited
+    const p2 = await g.prove("alice", "wiki");
+    const b = await g.access("wiki", p2);
+    assert.equal(b.status, 429, JSON.stringify(b.body));
+    assert.equal(b.body.error.code, "RATE_LIMITED");
+
+    // a rejected (invalid) proof never consumes the budget
+    const bad = await g.access("file_share", gw.tamper(await g.prove("alice", "file_share")));
+    assert.equal(bad.body.error.code, "PROOF_INVALID");
+    const fs1 = await g.access("file_share", await g.prove("alice", "file_share"));
+    assert.equal(fs1.status, 200, "an invalid proof must not use up (nullifier, epoch)");
+
+    // another user on the same service and epoch is independent
+    assert.equal((await g.access("wiki", await g.prove("carol", "wiki"))).status, 200);
+
+    // concurrency: three valid proofs with the same nullifier in flight, exactly one admitted
+    const burst = [];
+    for (let i = 0; i < 3; i++) burst.push(await g.prove("carol", "admin_panel"));
+    const res = await Promise.all(burst.map((p) => g.access("admin_panel", p)));
+    assert.equal(res.filter((r) => r.status === 200).length, 1, res.map((r) => r.status).join(","));
+    assert.ok(res.filter((r) => r.status !== 200).every((r) => r.body.error.code === "RATE_LIMITED"));
+
+    // boundary: the next epoch gives a new nullifier and a new admission
+    const before = await g.prove("alice", "wiki");
+    g.clock.advance(gw.toNextEpoch(g.clock.t));
+    const next = await g.prove("alice", "wiki");
+    assert.notEqual(next.publicSignals[0], before.publicSignals[0], "nullifier must change with the epoch");
+    assert.equal(Number(next.publicSignals[11]), Number(before.publicSignals[11]) + 1);
+    assert.equal((await g.access("wiki", next)).status, 200);
+    // ...and is limited again within that epoch
+    assert.equal((await g.access("wiki", await g.prove("alice", "wiki"))).body.error.code, "RATE_LIMITED");
+  });
 
   test("F5.08 one person cannot hold two live credentials (else N credentials = N nullifiers per epoch): enrolment_pending / employee_has_credential", async () => {
     // SR-03 (system level of floor 5), issuer.api v2 / issuer.admin v1.1, G1-S1-SAFETY-021.

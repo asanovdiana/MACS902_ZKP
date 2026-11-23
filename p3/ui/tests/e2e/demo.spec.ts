@@ -134,3 +134,28 @@ test('basic accessibility: every button and form control has an accessible name'
     expect(unnamed, path).toEqual([]);
   }
 });
+
+// Real Keycloak login through the UI (requires the Docker demo with Keycloak: E2E_KEYCLOAK=1).
+test('SSO vs ZK: real Keycloak login, then the same Wiki request through both front doors', async ({
+  page,
+}) => {
+  test.skip(
+    process.env.E2E_KEYCLOAK !== '1',
+    'set E2E_KEYCLOAK=1 with the Docker demo (Keycloak) running',
+  );
+  await page.getByRole('link', { name: /SSO vs ZK/ }).click();
+  await page.getByRole('link', { name: 'Log in with Keycloak' }).click();
+  await expect(page).toHaveURL(
+    /\/realms\/zkag\/protocol\/openid-connect\/auth.*code_challenge_method=S256/,
+  );
+  await page.locator('#username').fill('alice');
+  await page.locator('#password').fill('alice-dev-password');
+  await page.locator('#kc-login').click();
+  await expect(page).toHaveURL(/\/compare$/);
+  await page.getByRole('button', { name: 'Open Wiki via SSO' }).click();
+  await expect(page.getByText('alice@northwind.example')).toBeVisible();
+  await expect(page.getByText('Signature valid (RS256')).toBeVisible();
+  await page.getByRole('button', { name: 'Request via ZK gateway' }).click();
+  await expect(page.getByText('ACCESS_GRANTED').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('not received').first()).toBeVisible();
+});

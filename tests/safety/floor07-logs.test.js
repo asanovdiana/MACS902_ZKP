@@ -139,5 +139,103 @@ describe("floor 7: logs and state hold no identity attributes", () => {
     });
   });
 
-  test("F7.05 gateway log and state hold no username, email, role, department or clearance", { todo: "gateway (P3) not in this repository" }, () => {});
+  test("F7.05 gateway log and state hold no username, email, role, department or clearance", async (t) => {
+    // P3 gateway half of floor 7 (obligation 8): a busy gateway session (admissions, sessions,
+    // proxied requests, every denial path, revocation, operator and admin reads), then the gateway's
+    // structured log, event stream and in-memory state are scanned.
+    const gw = require("./gateway");
+    const EMP = { alice: "alice.anders@corp.example", bob: "bob.brennan@corp.example", carol: "carol.castillo@corp.example" };
+    const ATTR = {
+      alice: { role: "engineer", dept: "engineering", clearance: 2, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+      bob: { role: "contractor", dept: "operations", clearance: 1, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+      carol: { role: "admin", dept: "it", clearance: 3, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    };
+    const g = await gw.startGateway();
+    t.after(() => g.close());
+    for (const n of Object.keys(EMP)) await g.enrol(n, ATTR[n], EMP[n]);
+
+    const presented = [];
+    const send = async (resource, p) => {
+      presented.push(p);
+      return g.access(resource, p);
+    };
+    // admissions + sessions + proxied requests
+    const ok = await send("wiki", await g.prove("alice", "wiki"));
+    assert.equal(ok.status, 200);
+    const cookie = ok.headers.get("set-cookie").split(";")[0];
+    for (const p of ["/", "/articles?q=incident", "/articles/device-compliance"]) await fetch(`${g.gatewayUrl}/svc/wiki${p}`, { headers: { cookie } });
+    await send("file_share", await g.prove("alice", "file_share"));
+    await send("admin_panel", await g.prove("carol", "admin_panel"));
+    await send("wiki", await g.prove("bob", "wiki"));
+    // every denial path
+    await send("wiki", presented[0]); // NONCE_USED
+    await send("wiki", await g.prove("alice", "wiki")); // RATE_LIMITED
+    await send("admin_panel", await g.prove("carol", "wiki")); // POLICY_MISMATCH (resource not challenged)
+    await send("file_share", gw.tamper(await g.prove("carol", "file_share"))); // PROOF_INVALID
+    const held = await g.prove("carol", "wiki");
+    g.clock.advance(2);
+    await g.revoke("carol");
+    await send("wiki", held); // ROOT_NOT_CURRENT
+    await fetch(`${g.gatewayUrl}/access`, { method: "POST", headers: { "content-type": "application/json" }, body: "{not json" });
+    await fetch(`${g.gatewayUrl}/challenge?resource=payroll`);
+    await fetch(`${g.gatewayUrl}/svc/wiki/`, { headers: { cookie: "zkag_wiki=forged" } });
+    // operator and admin reads (the console paths)
+    const op = await g.operatorCookie();
+    const opEvents = await (await fetch(`${g.gatewayUrl}/api/operator/events`, { headers: { cookie: op } })).text();
+    await fetch(`${g.gatewayUrl}/api/admin/registry`, { headers: { cookie: op } });
+    await fetch(`${g.gatewayUrl}/api/status`);
+
+    const log = g.sink.text();
+    assert.ok(g.sink.lines.length >= 20, `expected a busy gateway log, got ${g.sink.lines.length} lines`);
+    const ctx = g.ctx;
+    const eventObjs = ctx.bus.recent(500);
+    const events = JSON.stringify(eventObjs);
+    // in-memory state the gateway keeps (sessions, challenges, nullifier counters)
+    const stateObj = {
+      sessions: [...ctx.sessions.sessions.values()],
+      challenges: [...ctx.challenges.items.values()],
+      nullifiers: [...ctx.nullifiers.uses.keys()],
+      rootHistory: ctx.rootHistory,
+    };
+    const state = JSON.stringify(stateObj);
+    const keysOf = (v, out = new Set()) => {
+      if (Array.isArray(v)) v.forEach((x) => keysOf(x, out));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) (out.add(k), keysOf(x, out));
+      return out;
+    };
+    const structures = {
+      log: g.sink.lines.map((l) => JSON.parse(l)),
+      events: eventObjs,
+      state: stateObj,
+      "operator events": JSON.parse(opEvents),
+    };
+    assert.ok(events.includes("verification.completed") && events.includes("publicSignals"), "public signals and decisions are expected");
+
+    // 1. no identity, attribute, credential secret, signature, leaf, proof or token VALUE
+    const sensitive = [...Object.values(EMP), "alice.anders", "bob.brennan", "carol.castillo", "corp.example", h.ADMIN_TOKEN, gw.OPERATOR_TOKEN];
+    for (const n of Object.keys(EMP)) {
+      const c = g.wallet.load(n);
+      sensitive.push(c.secrets.credentialSecret, c.secrets.credentialSalt, c.commitment, c.signature.R8x, c.signature.R8y, c.signature.S);
+      sensitive.push(await h.zk.attrHash(c.attributes, c.commitment));
+    }
+    for (const p of presented) sensitive.push(...p.proof.pi_a.slice(0, 2), ...p.proof.pi_c.slice(0, 2), ...p.proof.pi_b[0]);
+    sensitive.push(cookie.split("=")[1], op.split("=")[1]);
+    for (const [where, text] of [["log", log], ["events", events], ["state", state], ["operator events", opEvents]]) {
+      for (const v of sensitive) assert.ok(!text.includes(v), `gateway ${where} contains a sensitive value (${String(v).slice(0, 10)}...)`);
+    }
+    // 2. no attribute / identity / credential KEY at any depth of any structure
+    const forbiddenKeys = ["role", "dept", "department", "clearance", "deviceCompliant", "employeeActive", "expiry", "username", "email", "employeeId", "attributes", "commitment", "secret", "credentialSecret", "salt", "credentialSalt", "signature", "R8x", "R8y", "S", "pathElements", "pathIndices", "leaf", "leafIndex", "cookie", "authorization", "token", "pi_a", "pi_b", "pi_c", "proof"];
+    for (const [where, obj] of Object.entries(structures)) {
+      const keys = keysOf(obj);
+      for (const k of forbiddenKeys) assert.ok(!keys.has(k), `gateway ${where} has key "${k}"`);
+    }
+    // 3. request log lines carry the path without the query string and no headers or bodies
+    for (const line of g.sink.lines) {
+      const o = JSON.parse(line);
+      if (o.req) {
+        assert.deepEqual(Object.keys(o.req).sort(), ["id", "method", "url"]);
+        assert.ok(!o.req.url.includes("?"), `query string logged: ${o.req.url}`);
+      }
+    }
+  });
 });

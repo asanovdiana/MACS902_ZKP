@@ -112,3 +112,19 @@ install, `circuits` must update `access-fixtures.js` `TEST_ONLY` (multi-party, `
 Not asserted (observation): the committed `status_detail` reads "DEMO-ONLY (single-party phase 2)"
 while `status` is `DEV-ONLY`; the status field governs, and the detail names the single-party
 limitation, so it is not an overstatement, but `circuits` should align the wording when re-keying.
+
+### P3 gateway: F3.09, F4.06, F5.07, F7.05 (todo -> real)
+
+The gateway half of floors 3, 4, 5 and 7 now runs against the real P3 gateway. No ID, title or order
+changed; each test only went from `todo` to a real body (tightening). `gateway.js` (new) starts the
+compiled P3 gateway (`p3/gateway/dist`, build with `npm ci --prefix p3 && npm run build --prefix p3`;
+the test FAILS with that instruction if the build is missing, it never skips), the real issuer
+(`makeIssuer`, listening), the real Wiki service and the real client prover. Issuer and gateway share
+one `clockAt` clock, so TTLs, epochs and the 30 s staleness window are deterministic (no sleeps).
+
+| ID | What it asserts |
+|---|---|
+| F3.09 | control admit + session; insert-only root change keeps a held proof valid; after the revocation the held proofs are `ROOT_NOT_CURRENT` (immediately, inside the root cache window, and 60 s later), the pre-revocation session is revoked (401), no new proof can be made, the committed `stale_root_bob_wiki` fixture is never admitted |
+| F4.06 | replay `NONCE_USED`; 4 concurrent identical requests admit exactly one; presented at exactly 120 s admitted; at 121 s `NONCE_EXPIRED` and burnt; committed fixture and forged nonces `NONCE_UNKNOWN` |
+| F5.07 | second proof (fresh nonce) in the epoch `RATE_LIMITED`; a `PROOF_INVALID` attempt does not consume the budget; another user independent; 3 concurrent same-nullifier proofs admit exactly one; the next epoch changes the nullifier and admits once more |
+| F7.05 | busy session (admissions, proxied requests, every denial, revocation, operator/admin reads); the gateway log, event stream, operator events and in-memory state contain no employee id/email, secret, salt, commitment, signature, attrHash, proof coordinate, session id or token value, and no attribute/identity/credential key at any depth; request log lines carry only `{id, method, url}` without query strings |

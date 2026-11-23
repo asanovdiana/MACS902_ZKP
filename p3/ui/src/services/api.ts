@@ -159,8 +159,12 @@ export const prover = {
       'GET',
       '/p2/v1/attacks',
     ),
-  runAttack: (id: string) =>
-    json<TeamAttackRun>('POST', `/p2/v1/attacks/${encodeURIComponent(id)}/run`, {}),
+  runAttack: (id: string, realWaits = false) =>
+    json<TeamAttackRun>(
+      'POST',
+      `/p2/v1/attacks/${encodeURIComponent(id)}/run${realWaits ? '?waits=real' : ''}`,
+      {},
+    ),
 };
 
 export interface TeamAttackStep {

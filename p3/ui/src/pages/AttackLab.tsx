@@ -67,10 +67,10 @@ export function AttackLabPage() {
     setResults((prev) => ({ ...prev, [s.id]: r }));
     setRunning(null);
   };
-  const runTeam = async (id: string) => {
+  const runTeam = async (id: string, realWaits = false) => {
     setRunning(`team:${id}`);
     try {
-      const r = await prover.runAttack(id);
+      const r = await prover.runAttack(id, realWaits);
       setTeamResults((p) => ({ ...p, [id]: { ok: true, run: r } }));
     } catch (e) {
       setTeamResults((p) => ({ ...p, [id]: { ok: false, error: (e as Error).message } }));
@@ -150,6 +150,7 @@ export function AttackLabPage() {
                 running={running === `team:${id}`}
                 disabled={!!running}
                 onRun={() => void runTeam(id)}
+                onRunRealWait={id === 'replay_expired' ? () => void runTeam(id, true) : undefined}
               />
             ))}
           </div>

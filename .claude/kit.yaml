@@ -17,10 +17,9 @@ project:
 
 forge:
   kind: github
-  remote: "https://github.com/<team>/<repo>"   # placeholder: set to the team's shared repository
+  remote: "https://github.com/asanovdiana/MACS902_ZKP"
   cli: gh
-  ci: null                       # no workflow exists yet; set to .github/workflows/<file> once
-                                 # devops adds it (scope: security suite must pass in CI)
+  ci: .github/workflows/ci.yml
   exclusive: true
   mirror: null
 

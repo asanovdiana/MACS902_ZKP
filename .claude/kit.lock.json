@@ -16,12 +16,12 @@
     "tests/safety/** is append-only"
   ],
   "forge": {
-    "ci": null,
+    "ci": ".github/workflows/ci.yml",
     "cli": "gh",
     "exclusive": true,
     "kind": "github",
     "mirror": null,
-    "remote": "https://github.com/<team>/<repo>"
+    "remote": "https://github.com/asanovdiana/MACS902_ZKP"
   },
   "kit_version": "1.10.5",
   "load_order": [

@@ -5,6 +5,9 @@
  *   - the team Attack Lab library (client/attacks), which enrols real personas, generates REAL
  *     Groth16 proofs with the client prover and sends them to GET /challenge and POST /access.
  * Every attack must produce exactly the team's expected outcome and reason code.
+ * Waits (replay_expired holds a proof 125 s past issue) are NOT skipped and do NOT sleep: the gateway
+ * runs on an injected clock (real time + offset) and the runner's wait(s) advances that offset, so the
+ * unchanged 120 s nonce TTL is exercised deterministically in milliseconds.
  * Skipped (BLOCKED) when the team issuer/client/circuit files are not present.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -33,6 +36,9 @@ describe.skipIf(!present)('team v4 issuer + attack suite → this gateway (real 
   let gwServer: Server;
   let gw: string;
   let issuerUrl: string;
+  /** Gateway clock = real time + offset; reset after each attack so later attacks see real time. */
+  let offsetMs = 0;
+  const gatewayClock = { now: () => Date.now() + offsetMs };
 
   beforeAll(async () => {
     const { loadConfig } = require(resolve(TEAM_ROOT, 'issuer/src/config.js'));
@@ -61,6 +67,7 @@ describe.skipIf(!present)('team v4 issuer + attack suite → this gateway (real 
         ALLOW_DEMO_KEYS: 'true',
         ZK_RATE_LIMIT_PER_MIN: '100000',
       }),
+      clock: gatewayClock,
     });
     gwServer = createServer(app);
     gw = await listen(gwServer);
@@ -82,11 +89,25 @@ describe.skipIf(!present)('team v4 issuer + attack suite → this gateway (real 
     : [];
   it.each(ids)('attack %s behaves exactly as the team suite expects', async (id) => {
     const built = await lab.buildAttack(id, world);
-    const run = await lab.runAttack(built, {
-      send: lab.httpSender(gw),
-      wait: (s: number) => world.advance(s),
-      skipWaits: true,
-    });
+    const t0 = Date.now();
+    let run;
+    try {
+      run = await lab.runAttack(built, {
+        send: lab.httpSender(gw),
+        // advance the GATEWAY's clock instead of sleeping (the issuer is unaffected)
+        wait: async (s: number) => {
+          offsetMs += s * 1000;
+        },
+        skipWaits: false,
+      });
+    } finally {
+      offsetMs = 0;
+    }
+    expect(
+      run.steps.every((s: any) => !s.skipped),
+      'no step may be skipped',
+    ).toBe(true);
+    expect(Date.now() - t0, 'waits must not sleep').toBeLessThan(60_000);
     const summary = run.steps.map(
       (s: any) =>
         `${s.label}: expect ${s.expect.outcome}/${s.expect.code} got ${s.actual ? `${s.actual.status}/${s.actual.code}` : 'skipped'}`,

@@ -183,5 +183,58 @@ describe("floor 3: revoked credential vs current root", () => {
     );
   });
 
-  test("F3.09 gateway denies a revoked credential against its current root", { todo: "gateway (P3) not in this repository; fixture stale_root_bob_wiki is its test input" }, () => {});
+  test("F3.09 gateway denies a revoked credential against its current root", async (t) => {
+    // P3 gateway half of floor 3 (obligation 3). Real gateway, issuer, client prover and verifier.
+    const gw = require("./gateway");
+  const ATTR = {
+    alice: { role: "engineer", dept: "engineering", clearance: 2, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    bob: { role: "contractor", dept: "operations", clearance: 1, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    carol: { role: "admin", dept: "it", clearance: 3, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+  };
+    const g = await gw.startGateway();
+    t.after(() => g.close());
+    for (const n of ["alice", "bob"]) await g.enrol(n, ATTR[n]); // carol enrols later (an insert)
+
+    // control: Bob is admitted before revocation and his session reaches the Wiki
+    const ok = await g.access("wiki", await g.prove("bob", "wiki"));
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    const cookie = ok.headers.get("set-cookie").split(";")[0];
+    assert.equal((await fetch(`${g.gatewayUrl}/svc/wiki/`, { headers: { cookie } })).status, 200);
+
+    // control: a root superseded ONLY by an enrolment stays acceptable inside the 30 s window
+    const aliceHeld = await g.prove("alice", "wiki");
+    g.clock.advance(5);
+    await g.enrol("carol", ATTR.carol);
+    const insertOnly = await g.access("wiki", aliceHeld);
+    assert.equal(insertOnly.status, 200, `insert-only root change must not lock Alice out: ${JSON.stringify(insertOnly.body)}`);
+
+    // Bob holds two proofs made against the pre-revocation root, then the issuer revokes him
+    const heldNow = await g.prove("bob", "wiki");
+    const heldLater = await g.prove("bob", "wiki");
+    const rootBefore = heldNow.publicSignals[1];
+    g.clock.advance(2);
+    const rootAfter = await g.revoke("bob");
+    assert.notEqual(rootAfter, rootBefore);
+
+    // 1. immediately (well inside the 30 s staleness window and the root cache): denied
+    const r1 = await g.access("wiki", heldNow);
+    assert.equal(r1.status, 403, JSON.stringify(r1.body));
+    assert.equal(r1.body.error.code, "ROOT_NOT_CURRENT");
+    // 2. later, nonce still valid: still denied (a revocation is never crossed)
+    g.clock.advance(60);
+    const r2 = await g.access("wiki", heldLater);
+    assert.equal(r2.body.error.code, "ROOT_NOT_CURRENT");
+    // 3. the session issued before the revocation no longer reaches the service
+    const s = await fetch(`${g.gatewayUrl}/svc/wiki/`, { headers: { cookie } });
+    assert.equal(s.status, 401);
+    // 4. Bob cannot produce a new proof: the issuer no longer serves his Merkle path
+    await assert.rejects(g.prove("bob", "wiki"));
+    // 5. a holder who was not revoked (Carol) is still admitted under the new root
+    const carolOk = await g.access("wiki", await g.prove("carol", "wiki"));
+    assert.equal(carolOk.status, 200, JSON.stringify(carolOk.body));
+    // 6. the committed stale-root fixture is never admitted by this gateway
+    const fx = h.fixture("stale_root_bob_wiki");
+    const f = await g.access("wiki", fx);
+    assert.notEqual(f.status, 200);
+  });
 });

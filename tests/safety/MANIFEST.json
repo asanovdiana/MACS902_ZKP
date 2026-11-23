@@ -298,7 +298,7 @@
         3
       ],
       "title": "gateway denies a revoked credential against its current root",
-      "pending": "gateway (P3) not in this repository; fixture stale_root_bob_wiki is its test input",
+      "resolved": "P3 gateway: real test against the P3 gateway (p3/gateway, real snarkjs verifier, committed v4 key), the real issuer and client prover; revoked holder denied ROOT_NOT_CURRENT, session revoked, no new proof; was todo",
       "added": "G1-S1-SAFETY-020"
     },
     {
@@ -353,7 +353,7 @@
         4
       ],
       "title": "gateway denies a used nonce and an expired nonce (TTL 120 s)",
-      "pending": "gateway (P3) not in this repository; replay of alice_wiki and stale_now_alice_wiki are its test inputs",
+      "resolved": "P3 gateway: real test; used nonce NONCE_USED (incl. concurrent), at-TTL accepted, TTL+1 s NONCE_EXPIRED on a shared deterministic clock, unknown nonce NONCE_UNKNOWN; was todo",
       "added": "G1-S1-SAFETY-020"
     },
     {
@@ -417,7 +417,7 @@
         5
       ],
       "title": "gateway rate-limits (nullifier, epoch) to one admission per epoch",
-      "pending": "gateway (P3) not in this repository; same_epoch_a then same_epoch_b is its test input",
+      "resolved": "P3 gateway: real test; second admission of the same (nullifier, epoch) RATE_LIMITED (incl. concurrent), invalid proofs do not consume, next epoch admitted; was todo",
       "added": "G1-S1-SAFETY-020"
     },
     {
@@ -535,7 +535,7 @@
         7
       ],
       "title": "gateway log and state hold no username, email, role, department or clearance",
-      "pending": "gateway (P3) not in this repository",
+      "resolved": "P3 gateway: real test; busy gateway session, then the structured log, event stream, operator events and in-memory state hold no identity/attribute/credential value or key; was todo",
       "added": "G1-S1-SAFETY-020"
     },
     {

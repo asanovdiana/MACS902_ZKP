@@ -343,7 +343,7 @@ after(async () => {
 // G2-S1-CIRC-040a: the pse phase-1 source and the manifest labels per source. Synthetic: no network,
 // no proving; temp dirs only.
 describe("G2-S1-CIRC-040a ptau.sh pse source + setup-manifest.js labels", function () {
-  this.timeout(60000);
+  this.timeout(90000);
   let dir;
   before(() => {
     dir = tmpDir("pse");

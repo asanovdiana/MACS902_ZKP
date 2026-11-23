@@ -12,9 +12,9 @@ committed source is marked "not measured". The required contents come from
 3. [Design](#3-design)
 4. [Circuit](circuit.md)
 5. [Identity: issuer, registry, client prover](identity.md)
-6. [Gateway, services and demo](gateway-and-demo.md)
+6. [Gateway, services and demo (P3)](p3-gateway.md)
 7. [Threat model](../security/threat-model.md)
-8. [Results](#8-results) ([P2 measurements](results-p2.md), [gateway benchmarks](gateway-and-demo.md#8-benchmark-results))
+8. [Results](#8-results) ([P2 measurements](results-p2.md), [gateway benchmarks](p3-gateway.md#9-measured-performance))
 9. [Privacy comparison](privacy-comparison.md)
 10. [Limitations](#10-limitations)
 11. [Future work](#11-future-work)
@@ -68,7 +68,7 @@ Decisions: [`docs/decisions.md`](../decisions.md) and `docs/adr/`.
 
 - [Circuit](circuit.md): what the v4 circuit proves, 9208 constraints at depth 16, mutation testing.
 - [Identity](identity.md): issuer, registry and revocation, client prover.
-- [Gateway, services and demo](gateway-and-demo.md): how the gateway enforces the eight contract
+- [Gateway, services and demo (P3)](p3-gateway.md): how the gateway enforces the eight contract
   obligations, the services, the five demo screens, Keycloak baseline, Docker, benchmarks.
 - [Threat model](../security/threat-model.md): malicious user, malicious issuer, compromised gateway,
   network attacker, insider abuse.
@@ -78,7 +78,7 @@ Decisions: [`docs/decisions.md`](../decisions.md) and `docs/adr/`.
 **Performance.** Circuit-level measurements (proving, verify, proof size, constraints) and their
 comparison with the scope targets: [`results-p2.md`](results-p2.md). System-level measurements
 (v4 proving through the client, gateway verify, challenge → admit, per-request cost with a session,
-SSO per-request cost): [gateway chapter, section 8](gateway-and-demo.md#8-benchmark-results), from
+SSO per-request cost): [gateway chapter, section 9](p3-gateway.md#9-measured-performance), from
 [`p3/bench/results/latest.json`](../../p3/bench/results/latest.json). Headline (median / p95, that
 file): v4 proving 785.66 / 1007.86 ms, gateway verify 12.23 / 14.48 ms, challenge → admit
 803.55 / 1035.17 ms, request with a ZK session 1.90 / 3.05 ms against 2.72 / 5.69 ms for SSO. The

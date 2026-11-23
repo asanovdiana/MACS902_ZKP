@@ -11,11 +11,12 @@ comparison baseline, so the demo can show what each one learns.
 Full scope: [`docs/project-scope.md`](docs/project-scope.md). Plain-language background:
 [`docs/technology-explained.md`](docs/technology-explained.md).
 
-**What is in this repository** is the cryptographic and identity half: the access circuit
-(v3 imported, v4 to the scope), the issuer and revocation registry, the client prover and CLI, the
-Attack Lab scripts and the safety test tier. The gateway, the demo services, the UI, Keycloak and
-`make demo` belong to other owners and are **not in this repository yet**; nothing here claims a
-working end-to-end demo.
+**What is in this repository** is the whole system: the access circuit (P1's v3 kept, v4 to the
+scope), the issuer and revocation registry, the client prover and CLI, the Attack Lab scripts and the
+safety test tier at the root, and under [`p3/`](p3/) the gateway, the three demo services, the demo
+UI, the Keycloak baseline and the Docker packaging. `make test` runs every suite; `make demo` starts
+the full demo in Docker (UI http://localhost:8088). Demo runbook: [`p3/DEMO.md`](p3/DEMO.md). Report:
+[`docs/report/README.md`](docs/report/README.md).
 
 ## Architecture
 
@@ -63,15 +64,15 @@ signal order is `access.public_signals v4` in [`docs/CONTRACTS.md`](docs/CONTRAC
 
 | Path | What | Owner | In this repo |
 |---|---|---|---|
-| `circuits/` | M3: `integrated_access_v3.circom` (P1, kept), `integrated_access_v4.circom`, `components/`, shared encoder `lib/`, committed DEV proving artefacts `setup/`, fixtures, reports | `circuits` | yes |
+| `circuits/` | M3: `integrated_access_v3.circom` (P1, kept), `integrated_access_v4.circom`, `components/`, shared encoder `lib/`, committed proving artefacts `setup/` (v3 DEV-ONLY, v4 DEMO-ONLY), phase-2 ceremony `ceremony/`, fixtures, reports | `circuits` | yes |
 | `issuer/` | M1 issuer + M2 registry, revocation, admin API, enrolment, persona seeding | `identity` | yes |
 | `client/` | M4 wallet, issuer client, prover, `zkgate` CLI; `client/attacks/` Attack Lab scripts | `identity` | yes |
 | `tests/safety/` | safety floor tier (append-only) | `safety` | yes |
 | `scripts/` | `generate_integrated_v3.js` (P1), `fmt` | P1 / `devops` | yes |
-| `gateway/`, `services/` | M5 verifier gateway and the three demo services | `gateway` | **no** |
-| `ui/` | M6 demo UI | `frontend` | **no** |
-| `docker/`, `keycloak/`, `compose.yaml`, `Makefile` | packaging, M7 baseline, `make demo`, CI | `devops` | **no** (`make demo` and `make test` do not exist) |
-| `bench/`, `tests/integration/`, `tests/e2e/` | M8 benchmarks, integration and e2e tiers | `qa` | **no** |
+| `p3/gateway/`, `p3/services/` | M5 verifier gateway and the three demo services | `gateway` | yes |
+| `p3/ui/` | M6 demo UI | `frontend` | yes |
+| `p3/docker/`, `p3/baseline/`, `p3/docker-compose.yml`, `Makefile`, `.github/` | packaging, M7 baseline, `make demo`, CI | `devops` | yes |
+| `p3/bench/`, `p3/ui/tests/e2e/` | M8 benchmarks, Playwright e2e | `qa` | yes |
 | [`docs/`](docs/) | scope, strategy, plan, contracts, ADRs, security, report chapters | `architect` / Orchestrator / `safety` | yes |
 
 Path ownership is in [`docs/strategy.md`](docs/strategy.md) §2.
@@ -81,17 +82,19 @@ Path ownership is in [`docs/strategy.md`](docs/strategy.md) §2.
 | Lane | Status |
 |---|---|
 | **P1: circuit v3** | Imported from `feature/p1-circuits-hamsa` and kept ([ADR 0002](docs/adr/0002-adopt-p1-v3-circuit-as-base.md)): 4935 constraints at `--O2`, committed keys (DEV-ONLY: PSE public phase 1, single-party phase 2). Its known gaps (unsigned attributes, private issuer key, fixed policy, no expiry or nonce) are what v4 closes. |
-| **P2: circuit v4** | Done to the scope: 9208 constraints at `--O2`, 12 public signals, mutation sweep 102/102 killed, fast verifier, committed DEV proving artefacts. |
+| **P2: circuit v4** | Done to the scope: 9208 constraints at `--O2`, 12 public signals, mutation sweep 102/102 killed, fast verifier; keys from a simulated 3-contribution phase-2 ceremony (DEMO-ONLY, [log](docs/ceremony/v4-ceremony-log.md)); second reviews by P1 ([`docs/security/p1-v4-second-review-hamsa.md`](docs/security/p1-v4-second-review-hamsa.md)) and an agent ([`docs/reviews/v4-circuit-review.md`](docs/reviews/v4-circuit-review.md)). |
 | **P2: issuer, registry, admin API** | Done: `issuer.api v2` (admin-approved enrolment), revocation, `issuer.admin v1.1` (leaves, tree, SSE events, enrolments), persona seeding. |
 | **P2: client prover and CLI** | Done: `keygen`, `request`, `status`, `prove` (v3 and v4), local policy pre-check, fast verify before returning. |
 | **P2: Attack Lab scripts** | Done: 9 attacks with expected reason codes (a *proposal* for the gateway). |
-| **P2: safety tier** | Done for the identity and circuit half: G1 floors review APPROVE; gateway half of floors 2-5 and 7 not signed until P3 ([review](docs/security/review-G1-P2.md) §5.3). |
+| **P2: safety tier** | Done: G1 floors review APPROVE ([review](docs/security/review-G1-P2.md)); the gateway half of floors 3, 4, 5 and 7 (F3.09, F4.06, F5.07, F7.05) is real against the P3 gateway since PR #7. `npm test --prefix tests/safety`: 85 tests, 0 failing, 2 superseded. |
 | Gateway, demo services (P3) | Done in `p3/`: obligations 1-8 enforced with the team codes; gateway floor tests F3.09, F4.06, F5.07, F7.05 real and passing. Report: [`docs/report/p3-gateway.md`](docs/report/p3-gateway.md). |
 | Demo UI | Done in `p3/ui`: User Portal, Gateway Live View, SSO vs ZK, Admin Console, Attack Lab (team suite), Performance. Runbook: [`p3/DEMO.md`](p3/DEMO.md). |
 | Keycloak baseline, `make demo`, CI | Done: live Keycloak (PKCE, JWKS) in Docker; root `Makefile` (`make test`, `make demo`, `make test-keycloak`, `make e2e`); `.github/workflows/ci.yml`. |
 
-**Checkpoint G1 (P2 lane): CONDITIONAL** — nothing failed; open conditions are team or other-lane work
-(ceremony, gateway, CI). See [`docs/gates/G1/summary.md`](docs/gates/G1/summary.md).
+**Checkpoint G1 (P2 lane): CONDITIONAL** — nothing failed; its open conditions (ceremony, gateway, CI)
+have since been met, see [`docs/plan/README.md`](docs/plan/README.md) "Open gates". A formal
+`/gate-check` with `safety` sign-off has not been run. Gate record:
+[`docs/gates/G1/summary.md`](docs/gates/G1/summary.md).
 
 **Start here:** what was built and how it fits — [`docs/p2-work.md`](docs/p2-work.md) · P2's note on
 building on P1's circuit — [`docs/notes/p2-note.md`](docs/notes/p2-note.md) · what P1 and P3 do next —
@@ -185,23 +188,20 @@ The floors and their tests: [`tests/safety/README.md`](tests/safety/README.md); 
 
 ## Known limitations
 
-- **DEV-ONLY keys (SR-06).** Phase 1 is PSE's public Perpetual Powers of Tau (prepared from
-  contribution 0080; 62 contributions in its transcript). Phase 2 is still a single contribution,
-  so whoever ran the setup could forge proofs. Fine for the demo; replace with the team's multi-party
-  phase-2 ceremony before any real use
-  ([`circuits/setup/ARTIFACTS.md`](circuits/setup/ARTIFACTS.md)).
-- **Gateway obligations 1-8 are pending (P3).** The circuit alone does not deliver replay, revocation,
-  forged-issuer, policy or rate-limit denial: the gateway must verify, pin the issuer key, check the
-  root, policy and `now`, burn nonces and enforce one nullifier per epoch, and log only public
-  signals ([`docs/CONTRACTS.md`](docs/CONTRACTS.md) `access.public_signals v4`). Floors 2-5 and 7 are
-  not signed at system level until then (SR-05, SR-07).
+- **Demo-only keys (SR-06).** Phase 1 is PSE's public Perpetual Powers of Tau (prepared from
+  contribution 0080; 62 contributions in its transcript). The v4 phase 2 was re-run on 2026-11-23 as
+  a 3-contribution ceremony with a public drand beacon, but **simulated**: all three contributions
+  were made by separate agents on one machine under one operator, so the multi-party guarantee does
+  not hold and the keys are DEMO-ONLY. Repeat the ceremony with the team members on their own machines
+  before any real use ([`docs/ceremony/v4-ceremony-log.md`](docs/ceremony/v4-ceremony-log.md),
+  [`circuits/setup/ARTIFACTS.md`](circuits/setup/ARTIFACTS.md)). The v3 keys stay single-party DEV-ONLY.
 - **`/path/:leafIndex` access-pattern leak (SR-08, LOW).** The registry learns which leaf index is in
   use after each root change, and revocation status can be enumerated by index.
 - **Insecure-dev mode.** `ISSUER_INSECURE_DEV=1` with no token opens the admin and revoke routes (and
   the v3 open enrolment) with a warning in the log. Local development only; the check requires a
   boolean `true` (SR-20). Never use it on a shared network.
-- No browser proving, no end-to-end latency against Keycloak, and no Makefile or CI yet.
-- The Attack Lab reason codes and the `/challenge` and `/access` shapes are proposals for the gateway.
+- No browser proving and no measured Keycloak login round trip (`p3/bench/results/latest.json` marks them blocked); gateway verify is 12.2 ms median against a < 10 ms target (risk R-010).
+- The gateway implements the Attack Lab reason codes and the `/challenge` and `/access` shapes (`p3/gateway/src/routes/teamAccess.ts`).
 - [`circuits/README.md`](circuits/README.md) still describes the v3-only state; the v4 facts are in
   [`circuits/setup/README.md`](circuits/setup/README.md) and the report chapters.
 

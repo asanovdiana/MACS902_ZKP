@@ -44,6 +44,7 @@ export function zkRoutes(ctx: GatewayContext) {
       resource,
       resourceField: RESOURCES[resource].fieldId.toString(),
       epoch: challenge.epoch,
+      now: challenge.now,
       issuedAt: new Date(challenge.createdAt).toISOString(),
       expiresAt: new Date(challenge.expiresAt).toISOString(),
       policy: {

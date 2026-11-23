@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   BN254_FIELD_MODULUS,
   POLICIES,
@@ -20,7 +23,10 @@ describe('configuration', () => {
   it('applies safe defaults', () => {
     const c = loadConfig({ NODE_ENV: 'test' });
     expect(c.SESSION_TTL_SECONDS).toBe(600);
-    expect(c.ZK_PROFILE).toBe('p1-integrated-v3');
+    expect(c.ZK_PROFILE).toBe('integrated-access-v4');
+    expect(c.REGISTRY_API).toBe('issuer-v1');
+    expect(c.ALLOW_DEMO_KEYS).toBe(false);
+    expect(c.trustedIssuer).toBeNull();
     expect(c.ROOT_CACHE_MS).toBeLessThanOrEqual(30000);
   });
   it('refuses development secrets in production', () => {
@@ -45,6 +51,34 @@ describe('configuration', () => {
     expect(() => loadConfig({ UPSTREAM_WIKI_URL: 'http://user:pw@127.0.0.1:1' })).toThrow(
       /upstream/,
     );
+  });
+  it('refuses demo keys in production and a non-600 s epoch for v4', () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        ALLOW_DEMO_KEYS: 'true',
+        OPERATOR_TOKEN: 'x'.repeat(30),
+        ASSERTION_SECRET_ZK: 'y'.repeat(40),
+        REGISTRY_ADMIN_TOKEN: 'z'.repeat(30),
+      }),
+    ).toThrow(/ALLOW_DEMO_KEYS/);
+    expect(() => loadConfig({ EPOCH_SECONDS: '300' })).toThrow(/EPOCH_SECONDS/);
+    expect(loadConfig({ ZK_PROFILE: 'p1-integrated-v3', EPOCH_SECONDS: '300' }).REGISTRY_API).toBe(
+      'p3-standin',
+    );
+  });
+  it('loads the pinned issuer key from a file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'zkag-pin-'));
+    writeFileSync(join(dir, 'issuer.json'), JSON.stringify({ Ax: '11', Ay: '22' }));
+    expect(loadConfig({ TRUSTED_ISSUER_FILE: join(dir, 'issuer.json') }).trustedIssuer).toEqual({
+      Ax: '11',
+      Ay: '22',
+    });
+    expect(loadConfig({ TRUSTED_ISSUER_AX: '1', TRUSTED_ISSUER_AY: '2' }).trustedIssuer).toEqual({
+      Ax: '1',
+      Ay: '2',
+    });
   });
   it('caps the root staleness window at 30 s (Project Scope M2)', () => {
     expect(() => loadConfig({ ROOT_CACHE_MS: '60000' })).toThrow();
@@ -153,6 +187,15 @@ describe('challenge store', () => {
     expect(store.create('wiki', 'p')).not.toBeNull();
     expect(store.size).toBe(1);
   });
+  it('issues 128-bit nonces, a challenge now, and epoch = floor(now / 600)', () => {
+    const { store, clock } = make();
+    const c = store.create('wiki', 'p')!;
+    expect(BigInt(c.nonce) < 2n ** 128n).toBe(true);
+    expect(c.now).toBe(String(Math.floor(clock.now() / 1000)));
+    expect(c.epoch).toBe(String(Math.floor(Number(c.now) / 600)));
+    expect(store.idForNonce(c.nonce)).toBe(c.id);
+    expect(store.idForNonce('123')).toBeUndefined();
+  });
   it('derives epochs from time', () => {
     const { store } = make();
     expect(store.epochAt(600_000 * 5 + 1)).toBe('5');
@@ -192,16 +235,17 @@ describe('session store', () => {
     clock.advance(600_000);
     expect(s.lookup(sess.id, 'wiki')).toEqual({ ok: false, reason: 'SESSION_EXPIRED' });
   });
-  it('issues a fresh identifier each time and revokes sessions under stale roots', () => {
+  it('issues a fresh identifier each time and revokes sessions by root', () => {
     const s = new SessionStore(new FakeClock(), 600_000);
     const a = s.issue('wiki', '1');
     const b = s.issue('wiki', '1');
     const c = s.issue('wiki', '2');
     expect(a.id).not.toBe(b.id);
     expect(a.pseudonym).not.toBe(b.pseudonym);
+    expect(s.distinctRoots().sort()).toEqual(['1', '2']);
     expect(
       s
-        .revokeStaleRoots('2')
+        .revokeByRoot('1')
         .map((x) => x.id)
         .sort(),
     ).toEqual([a.id, b.id].sort());
@@ -279,7 +323,7 @@ describe('profiles', () => {
       'nullifier',
       'expiryCheck',
     ]);
-    expect(missingCapabilities(PROFILES['zkag-access-v1'])).toEqual([]);
+    expect(missingCapabilities(PROFILES['integrated-access-v4'])).toEqual([]);
   });
 });
 

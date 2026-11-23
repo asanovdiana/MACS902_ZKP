@@ -33,6 +33,7 @@ export function publicInfoRoutes(ctx: GatewayContext) {
               version: art.manifest.version,
               securityStatus: art.manifest.securityStatus,
               trustedSetup: art.manifest.trustedSetup ?? null,
+              trust: art.trust,
               vkeySha256: art.vkeySha256,
               reviewed: art.reviewed,
             }
@@ -43,6 +44,9 @@ export function publicInfoRoutes(ctx: GatewayContext) {
         epochSeconds: ctx.config.EPOCH_SECONDS,
         nullifierMaxPerEpoch: ctx.config.NULLIFIER_MAX_PER_EPOCH,
         rootCacheMs: ctx.config.ROOT_CACHE_MS,
+        registryApi: ctx.config.REGISTRY_API,
+        issuerPinned: ctx.config.trustedIssuer !== null,
+        demoKeysAllowed: ctx.config.ALLOW_DEMO_KEYS,
       },
       devSecretsInUse: ctx.config.usingDevSecrets.length > 0,
     });

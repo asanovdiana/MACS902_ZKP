@@ -5,7 +5,7 @@ import pino, { type Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { Config } from '../config/env.js';
 import { EventBus } from '../events/bus.js';
-import { HttpRegistryClient, type RegistryClient } from '../registry/registryClient.js';
+import { createRegistry, type RegistryClient } from '../registry/index.js';
 import { ChallengeStore } from '../security/challenges.js';
 import { NullifierStore } from '../security/nullifiers.js';
 import { OperatorAuth } from '../security/operator.js';
@@ -22,6 +22,7 @@ import { zkRoutes } from '../routes/zk.js';
 import { operatorRoutes } from '../routes/operator.js';
 import { adminRoutes } from '../routes/admin.js';
 import { serviceProxyRoutes } from '../routes/serviceProxy.js';
+import { teamAccessRoutes } from '../routes/teamAccess.js';
 import { publicInfoRoutes } from '../routes/info.js';
 
 export interface AppDeps {
@@ -62,22 +63,16 @@ function buildContext(deps: AppDeps) {
       },
     });
   const profile = deps.testOverrides?.profile ?? PROFILES[config.ZK_PROFILE];
-  let artifactState = loadArtifacts(config.artifactDir, profile);
+  const load = () =>
+    loadArtifacts(config.artifactManifest, profile, { allowDemoKeys: config.ALLOW_DEMO_KEYS });
+  let artifactState = load();
   const artifacts = deps.testOverrides?.artifacts ?? (() => artifactState);
   const reloadArtifacts = () => {
-    artifactState = loadArtifacts(config.artifactDir, profile);
+    artifactState = load();
     return artifactState;
   };
   const bus = new EventBus();
-  const registry =
-    deps.registry ??
-    new HttpRegistryClient(
-      config.REGISTRY_URL,
-      config.REGISTRY_ADMIN_TOKEN,
-      config.REGISTRY_TIMEOUT_MS,
-      config.ROOT_CACHE_MS,
-      clock,
-    );
+  const registry = deps.registry ?? createRegistry(config, clock);
   const challenges = new ChallengeStore(
     clock,
     config.CHALLENGE_TTL_SECONDS * 1000,
@@ -117,16 +112,29 @@ function buildContext(deps: AppDeps) {
       root: next.root,
       version: next.version,
     });
-    // Revocation semantics: sessions issued under any other root are invalidated immediately.
-    for (const s of sessions.revokeStaleRoots(next.root)) {
-      bus.publish({
-        type: 'session.revoked',
-        source: 'zk-gateway',
-        correlationId: correlationId(),
-        resource: s.resource,
-        reason: 'REGISTRY_ROOT_CHANGED',
-      });
-    }
+    // Revocation semantics: a session survives root changes caused only by enrolments (inserts) and
+    // is invalidated as soon as any revocation happened after the root it was authorized under.
+    void (async () => {
+      for (const root of sessions.distinctRoots()) {
+        if (root === next.root) continue;
+        let valid = false;
+        try {
+          valid = await registry.sessionRootValid(root);
+        } catch {
+          valid = false; // cannot confirm: fail closed
+        }
+        if (valid) continue;
+        for (const s of sessions.revokeByRoot(root)) {
+          bus.publish({
+            type: 'session.revoked',
+            source: 'zk-gateway',
+            correlationId: correlationId(),
+            resource: s.resource,
+            reason: 'REGISTRY_REVOCATION',
+          });
+        }
+      }
+    })();
   });
 
   return {
@@ -205,6 +213,10 @@ export function createApp(deps: AppDeps) {
   app.use('/api/operator', operatorRoutes(ctx, loginLimiter));
   app.use('/api/admin', ctx.operator.middleware(), adminRoutes(ctx));
   app.use('/svc', serviceProxyRoutes(ctx));
+  // Team client protocol (client/src/challenge.js): GET /challenge, POST /access.
+  app.use('/challenge', zkLimiter);
+  app.use('/access', zkLimiter, requireJson);
+  app.use(teamAccessRoutes(ctx));
 
   app.use((_req: Request, res: Response) =>
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'not found' } }),

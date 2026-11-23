@@ -16,8 +16,7 @@ const NODE_MODULES = path.join(REPO, "node_modules");
 const BUILD = path.join(REPO, "build", "test"); // gitignored (`build/`)
 
 const V3_MAIN = path.join(CIRCUITS, "integrated_access_v3.circom");
-// Her components that v3 includes. components/integrated_access.circom is a broken two-line
-// fragment (does not compile) and is deliberately NOT part of any build; see circuits/README.md.
+// Her components that v3 includes.
 const V3_SOURCES = [
   V3_MAIN,
   path.join(CIRCUITS, "components", "access_policy.circom"),

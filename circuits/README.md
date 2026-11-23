@@ -51,7 +51,6 @@ Her files have not changed since the import; new behaviour goes into new files.
 | `components/access_policy.circom` | `FileShareAccess`: `role ∈ {2,3}`, `clearance ∈ {2,3}`, `deviceCompliant = 1`, `employeeActive = 1` (numbers opaque, see [`lib/README.md`](lib/README.md) *The v3 File Share quirk*) |
 | `components/eddsa_verifier.circom` | `IssuerSignatureCheck`: circomlib `EdDSAPoseidonVerifier` over `M`, `enabled = 1`. **Reused unchanged by v4.** |
 | `components/merkle_membership.circom` | `MerkleMembership`: depth-2 Poseidon(2) tree; `pathIndices[i] = 1` means the running node is the right child; indices boolean-constrained |
-| `components/integrated_access.circom` | **broken fragment**: two stray lines, no template. Does not compile, is included by nothing and is excluded from every build and test (the arrow audit only lexes it). Removal requested from P1; not edited or deleted here. |
 
 Constraint counts (circom 2.2.3, circomlib 2.0.5; asserted by `test/v3.test.js`):
 

@@ -7,6 +7,7 @@ export interface Challenge {
   resource: ResourceId;
   resourceField: string;
   epoch: string;
+  now: string;
   issuedAt: string;
   expiresAt: string;
   policy: {
@@ -39,6 +40,8 @@ export interface ProverResult {
 export interface VerifyResponse {
   decision: Decision;
   reason: string;
+  /** Team wire code (client/attacks codes); null when granted. */
+  code: string | null;
   message: string;
   correlationId: string;
   challengeId: string | null;
@@ -83,6 +86,7 @@ export interface GatewayStatus {
     trustedSetup?: string | null;
     vkeySha256?: string;
     reviewed?: boolean;
+    trust?: 'reviewed' | 'demo-accepted' | 'unreviewed';
     detail?: string;
   };
   settings: {
@@ -91,6 +95,9 @@ export interface GatewayStatus {
     epochSeconds: number;
     nullifierMaxPerEpoch: number;
     rootCacheMs: number;
+    registryApi?: string;
+    issuerPinned?: boolean;
+    demoKeysAllowed?: boolean;
   };
   devSecretsInUse: boolean;
 }

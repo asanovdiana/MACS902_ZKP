@@ -9,8 +9,7 @@ import {
 } from '@zkag/shared';
 import type { Config } from '../config/env.js';
 import type { EventBus } from '../events/bus.js';
-import type { RegistryClient } from '../registry/registryClient.js';
-import { RegistryUnavailableError } from '../registry/registryClient.js';
+import { RegistryUnavailableError, type RegistryClient } from '../registry/index.js';
 import type { ChallengeStore, Challenge } from '../security/challenges.js';
 import type { NullifierStore } from '../security/nullifiers.js';
 import type { SessionStore, ZkSession } from '../sessions/sessions.js';
@@ -26,9 +25,58 @@ import {
 } from './profiles.js';
 import { GROTH16_BN254_PROOF_BYTES, verifyRequestSchema } from './schema.js';
 
+/**
+ * Team wire codes (client/attacks/src/codes.js, proposed for P3 and adopted here). Every internal
+ * reason maps to exactly one code; `/access` answers with HTTP status + {error:{code}}.
+ */
+export const TEAM_CODES = {
+  MALFORMED_REQUEST: 400,
+  UNKNOWN_RESOURCE: 404,
+  NONCE_UNKNOWN: 403,
+  NONCE_USED: 403,
+  NONCE_EXPIRED: 403,
+  POLICY_MISMATCH: 403,
+  CHALLENGE_MISMATCH: 403,
+  ISSUER_NOT_PINNED: 403,
+  ROOT_NOT_CURRENT: 403,
+  PROOF_INVALID: 403,
+  RATE_LIMITED: 429,
+  AUTHORIZATION_UNAVAILABLE: 503,
+} as const;
+export type TeamCode = keyof typeof TEAM_CODES;
+
+const REASON_TO_CODE: Record<string, TeamCode | null> = {
+  ACCESS_GRANTED: null,
+  INVALID_REQUEST: 'MALFORMED_REQUEST',
+  PROOF_TOO_LARGE: 'MALFORMED_REQUEST',
+  PUBLIC_SIGNAL_LAYOUT_MISMATCH: 'MALFORMED_REQUEST',
+  CHALLENGE_UNKNOWN: 'NONCE_UNKNOWN',
+  CHALLENGE_REPLAYED: 'NONCE_USED',
+  CHALLENGE_EXPIRED: 'NONCE_EXPIRED',
+  RESOURCE_NOT_CHALLENGED: 'POLICY_MISMATCH',
+  POLICY_PARAMS_MISMATCH: 'POLICY_MISMATCH',
+  RESOURCE_MISMATCH: 'POLICY_MISMATCH',
+  PROFILE_MISMATCH: 'CHALLENGE_MISMATCH',
+  NONCE_MISMATCH: 'CHALLENGE_MISMATCH',
+  EPOCH_MISMATCH: 'CHALLENGE_MISMATCH',
+  TIME_MISMATCH: 'CHALLENGE_MISMATCH',
+  ISSUER_UNTRUSTED: 'ISSUER_NOT_PINNED',
+  ROOT_MISMATCH: 'ROOT_NOT_CURRENT',
+  PROOF_INVALID: 'PROOF_INVALID',
+  NULLIFIER_RATE_LIMITED: 'RATE_LIMITED',
+  ARTIFACTS_UNAVAILABLE: 'AUTHORIZATION_UNAVAILABLE',
+  ISSUER_NOT_CONFIGURED: 'AUTHORIZATION_UNAVAILABLE',
+  REGISTRY_UNAVAILABLE: 'AUTHORIZATION_UNAVAILABLE',
+  PROFILE_NOT_AUTHORIZATION_ELIGIBLE: 'AUTHORIZATION_UNAVAILABLE',
+};
+export const teamCodeFor = (reason: string): TeamCode | null =>
+  reason in REASON_TO_CODE ? REASON_TO_CODE[reason]! : 'MALFORMED_REQUEST';
+
 export interface VerifyResponse {
   decision: Decision;
   reason: string;
+  /** Team wire code (null when granted). */
+  code: TeamCode | null;
   message: string;
   correlationId: string;
   challengeId: string | null;
@@ -40,7 +88,7 @@ export interface VerifyResponse {
   publicSignals: { name: string; value: string }[];
   proof: { bytes: number; jsonBytes: number; digest: string } | null;
   timings: { totalMs: number; verifyMs: number | null; registryMs: number | null };
-  root: { trusted: string | null; version: string | null } | null;
+  root: { trusted: string | null; version: string | null; status?: string } | null;
   session?: { resource: ResourceId; expiresAt: string };
   missingGuarantees?: string[];
 }
@@ -64,12 +112,12 @@ export interface PipelineDeps {
   clock: Clock;
 }
 
-const REQUESTER_FIELDS = ['challengeId', 'proof (Groth16 π_a, π_b, π_c)', 'publicSignals'];
+const REQUESTER_FIELDS = ['nonce / challengeId', 'proof (Groth16 π_a, π_b, π_c)', 'publicSignals'];
 
 /**
- * The authorization pipeline. Cheap structural checks run first; Groth16 verification
- * runs only once the request is well formed and bound to a live challenge. A session is
- * issued only when EVERY required security property is established cryptographically.
+ * The authorization pipeline. Cheap structural checks run first, then the contract obligations in
+ * order (issuer pin → root → policy/resource → challenge nonce/epoch/now), then Groth16, then the
+ * nullifier. A session is issued only when EVERY required security property is established.
  */
 export class VerificationPipeline {
   constructor(private readonly d: PipelineDeps) {}
@@ -78,17 +126,20 @@ export class VerificationPipeline {
     const missing: string[] = missingCapabilities(this.d.profile).map((c) => CAPABILITY_LABELS[c]);
     const art = this.d.artifacts();
     if (art.status !== 'ready') missing.push(`Verification artifacts (${art.status})`);
-    else if (!art.reviewed) missing.push('Accepted security review of circuit artifacts');
-    if (
-      this.d.profile.capabilities.issuerBinding &&
-      !(this.d.config.TRUSTED_ISSUER_AX && this.d.config.TRUSTED_ISSUER_AY)
-    ) {
-      missing.push('Trusted issuer public key configured at gateway');
+    else if (!art.reviewed) {
+      missing.push('Accepted security review of circuit keys (or ALLOW_DEMO_KEYS for a demo)');
+    }
+    if (this.d.profile.capabilities.issuerBinding && !this.d.config.trustedIssuer) {
+      missing.push('Trusted issuer public key pinned at gateway');
     }
     return { eligible: missing.length === 0, missing };
   }
 
-  async verify(raw: unknown): Promise<VerifyOutcome> {
+  /**
+   * @param raw                {challengeId, proof, publicSignals}
+   * @param requestedResource  the service the client asked for (team `/access`); must equal the challenge's
+   */
+  async verify(raw: unknown, requestedResource?: ResourceId): Promise<VerifyOutcome> {
     const t0 = performance.now();
     const cid = newCorrelationId();
     const { profile, config } = this.d;
@@ -120,6 +171,7 @@ export class VerificationPipeline {
       const body: VerifyResponse = {
         decision,
         reason,
+        code: teamCodeFor(reason),
         message,
         correlationId: cid,
         challengeId: challenge?.id ?? null,
@@ -159,7 +211,7 @@ export class VerificationPipeline {
       return { status, body, ...(session ? { session } : {}) };
     };
 
-    // 1–2. Structure and size.
+    // Structure and size.
     const jsonBytes = Buffer.byteLength(JSON.stringify(raw ?? null));
     if (jsonBytes > config.MAX_PROOF_BYTES) {
       add(
@@ -183,11 +235,11 @@ export class VerificationPipeline {
       digest: digest(JSON.stringify(req.proof)),
     };
 
-    // 3. Challenge: atomic one-time consumption (also defines the resource authoritatively).
+    // Obligation 6: atomic one-time consumption of the challenge (defines the resource authoritatively).
     const consumed = this.d.challenges.consume(req.challengeId);
     if (!consumed.ok) {
       challenge = consumed.challenge ?? null;
-      add('challenge', 'Challenge fresh and unused', 'fail', consumed.reason);
+      add('challenge', 'Nonce issued here, unexpired and unused', 'fail', consumed.reason);
       if (consumed.reason === 'CHALLENGE_REPLAYED') {
         this.d.bus.publish({
           type: 'replay.rejected',
@@ -199,9 +251,9 @@ export class VerificationPipeline {
         });
       }
       const msg = {
-        CHALLENGE_UNKNOWN: 'Unknown challenge.',
-        CHALLENGE_EXPIRED: 'Challenge expired; request a new one.',
-        CHALLENGE_REPLAYED: 'Challenge already used: replay rejected.',
+        CHALLENGE_UNKNOWN: 'Nonce was not issued by this gateway.',
+        CHALLENGE_EXPIRED: 'Nonce expired; request a new challenge.',
+        CHALLENGE_REPLAYED: 'Nonce already used: replay rejected.',
       }[consumed.reason];
       return finish(
         consumed.reason === 'CHALLENGE_REPLAYED' ? 409 : 403,
@@ -213,7 +265,7 @@ export class VerificationPipeline {
     challenge = consumed.challenge;
     add(
       'challenge',
-      'Challenge fresh and unused',
+      'Nonce issued here, unexpired and unused',
       'pass',
       `consumed one-time challenge for ${challenge.resource}`,
     );
@@ -234,7 +286,21 @@ export class VerificationPipeline {
       })),
     });
 
-    // 5. Profile/artifacts.
+    if (requestedResource && requestedResource !== resource) {
+      add(
+        'requested',
+        'Requested service equals the challenged service',
+        'fail',
+        `${requestedResource} ≠ ${resource}`,
+      );
+      return finish(
+        403,
+        'denied',
+        'RESOURCE_NOT_CHALLENGED',
+        'The nonce was issued for a different service.',
+      );
+    }
+
     if (challenge.profile !== profile.id) {
       add('profile', 'Challenge issued for active circuit profile', 'fail');
       return finish(
@@ -248,7 +314,7 @@ export class VerificationPipeline {
     if (art.status !== 'ready') {
       add('artifacts', 'Verification key loaded and integrity-checked', 'fail', art.detail);
       return finish(
-        424,
+        503,
         'blocked',
         'ARTIFACTS_UNAVAILABLE',
         'Verification artifacts are unavailable; failing closed.',
@@ -258,10 +324,9 @@ export class VerificationPipeline {
       'artifacts',
       'Verification key loaded and integrity-checked',
       'pass',
-      `vkey sha256 ${art.vkeySha256.slice(0, 16)}…`,
+      `${art.manifest.circuitId} · vkey ${art.vkeySha256.slice(0, 12)}… · ${art.trust}`,
     );
 
-    // 8. Public-signal layout.
     if (req.publicSignals.length !== profile.signals.length) {
       add(
         'layout',
@@ -280,17 +345,61 @@ export class VerificationPipeline {
     const sig = (n: SignalName) => named.find((s) => s.name === n)?.value;
     add('layout', 'Public-signal count/order matches profile', 'pass', profile.signals.join(', '));
 
-    // 7/9. Authoritative registry root (fail closed).
+    // Obligation 2: issuer key pinned.
+    if (profile.capabilities.issuerBinding) {
+      const pin = config.trustedIssuer;
+      if (!pin) {
+        add('issuer', 'Issuer key equals pinned issuer', 'fail', 'no trusted issuer configured');
+        return finish(
+          503,
+          'blocked',
+          'ISSUER_NOT_CONFIGURED',
+          'No trusted issuer key pinned; failing closed.',
+        );
+      }
+      if (sig('issuerAx') !== pin.Ax || sig('issuerAy') !== pin.Ay) {
+        add('issuer', 'Issuer key equals pinned issuer', 'fail');
+        return finish(
+          403,
+          'denied',
+          'ISSUER_UNTRUSTED',
+          'Credential not signed by the pinned issuer key.',
+        );
+      }
+      add('issuer', 'Issuer key equals pinned issuer', 'pass');
+    } else {
+      add(
+        'issuer',
+        'Issuer key equals pinned issuer',
+        'not-supported',
+        'issuer key is a private witness in this circuit',
+      );
+    }
+
+    // Obligation 3: root current, or acceptable under the staleness rule.
     const tr = performance.now();
     try {
-      const snap = await this.d.registry.getCurrentRoot();
+      const a = await this.d.registry.assessProofRoot(
+        sig('root') ?? '',
+        Math.floor(this.d.clock.now() / 1000),
+      );
       registryMs = performance.now() - tr;
-      trustedRoot = { trusted: snap.root, version: snap.version };
+      trustedRoot = { trusted: a.current.root, version: a.current.version, status: a.status };
+      if (!a.acceptable) {
+        add('root', 'Root is current (insert-only staleness rule)', 'fail', a.detail);
+        return finish(
+          403,
+          'denied',
+          'ROOT_MISMATCH',
+          'Registry root is not current (credential revoked or proof stale).',
+        );
+      }
+      add('root', 'Root is current (insert-only staleness rule)', 'pass', a.detail);
     } catch (err) {
       registryMs = performance.now() - tr;
       add(
         'root',
-        'Root equals authoritative registry root',
+        'Root is current (insert-only staleness rule)',
         'fail',
         err instanceof RegistryUnavailableError ? err.code : 'REGISTRY_ERROR',
       );
@@ -301,28 +410,8 @@ export class VerificationPipeline {
         'Registry root could not be established; failing closed.',
       );
     }
-    if (sig('root') !== trustedRoot.trusted) {
-      add(
-        'root',
-        'Root equals authoritative registry root',
-        'fail',
-        'proof root is not the current registry root (revoked or stale)',
-      );
-      return finish(
-        403,
-        'denied',
-        'ROOT_MISMATCH',
-        'Proof is not against the current credential registry root (revoked or stale credential).',
-      );
-    }
-    add(
-      'root',
-      'Root equals authoritative registry root',
-      'pass',
-      `registry version ${trustedRoot.version ?? 'n/a'}`,
-    );
 
-    // 10. Policy parameters.
+    // Obligation 4: policy fields and resourceId equal the requested service's configuration.
     if (profile.capabilities.policyBinding) {
       const p = policyPublicParams(policy);
       const expect: Array<[SignalName, bigint]> = [
@@ -343,7 +432,7 @@ export class VerificationPipeline {
           403,
           'denied',
           'POLICY_PARAMS_MISMATCH',
-          'Proof was generated for different policy parameters.',
+          'Proof is for another service or policy than the one requested.',
         );
       }
       add('policy', `Policy parameters match ${policy.resource} policy`, 'pass', policy.summary);
@@ -355,27 +444,6 @@ export class VerificationPipeline {
         'circuit has no policy public inputs; attributes are not issuer-bound',
       );
     }
-
-    // 11–14. Nonce, resource, epoch, time.
-    if (profile.capabilities.nonceBinding) {
-      if (sig('nonce') !== challenge.nonce) {
-        add('nonce', 'Proof bound to challenge nonce', 'fail');
-        return finish(
-          403,
-          'denied',
-          'NONCE_MISMATCH',
-          'Proof is not bound to this challenge (replayed or precomputed proof).',
-        );
-      }
-      add('nonce', 'Proof bound to challenge nonce', 'pass');
-    } else
-      add(
-        'nonce',
-        'Proof bound to challenge nonce',
-        'not-supported',
-        'no nonce public input in circuit',
-      );
-
     if (profile.capabilities.resourceBinding) {
       if (sig('resourceId') !== RESOURCES[resource].fieldId.toString()) {
         add('resource', 'Proof bound to resource ID', 'fail');
@@ -390,82 +458,62 @@ export class VerificationPipeline {
     } else
       add('resource', 'Proof bound to resource ID', 'not-supported', 'no resource_id public input');
 
-    if (profile.capabilities.epochBinding) {
-      if (sig('epoch') !== challenge.epoch) {
-        add('epoch', 'Proof bound to current epoch', 'fail');
+    // Obligations 5–6: nonce, epoch and now equal the challenge stored with the nonce.
+    if (profile.capabilities.nonceBinding) {
+      if (sig('nonce') !== challenge.nonce) {
+        add('nonce', 'Proof bound to challenge nonce', 'fail');
         return finish(
           403,
           'denied',
-          'EPOCH_MISMATCH',
-          'Proof epoch does not match the challenge epoch.',
+          'NONCE_MISMATCH',
+          "Proof's nonce differs from the challenge (replayed or precomputed proof).",
         );
       }
-      add('epoch', 'Proof bound to current epoch', 'pass');
-    } else add('epoch', 'Proof bound to current epoch', 'not-supported');
-
-    if (profile.capabilities.expiryCheck) {
-      const t = Number(sig('currentTime'));
-      const nowS = Math.floor(this.d.clock.now() / 1000);
-      if (!Number.isFinite(t) || Math.abs(t - nowS) > config.CLOCK_SKEW_SECONDS) {
-        add('time', 'Expiry evaluated at current time', 'fail', 'currentTime outside allowed skew');
-        return finish(
-          403,
-          'denied',
-          'TIME_OUT_OF_RANGE',
-          'Proof time input is outside the allowed clock skew.',
-        );
-      }
-      add('time', 'Expiry evaluated at current time', 'pass');
-    } else add('time', 'Credential expiry enforced', 'not-supported', 'no expiry/now input');
-
-    if (profile.capabilities.issuerBinding) {
-      if (!config.TRUSTED_ISSUER_AX || !config.TRUSTED_ISSUER_AY) {
-        add('issuer', 'Issuer key equals trusted issuer', 'fail', 'no trusted issuer configured');
-        return finish(
-          424,
-          'blocked',
-          'ISSUER_NOT_CONFIGURED',
-          'No trusted issuer key configured; failing closed.',
-        );
-      }
-      if (
-        sig('issuerAx') !== config.TRUSTED_ISSUER_AX ||
-        sig('issuerAy') !== config.TRUSTED_ISSUER_AY
-      ) {
-        add('issuer', 'Issuer key equals trusted issuer', 'fail');
-        return finish(
-          403,
-          'denied',
-          'ISSUER_UNTRUSTED',
-          'Credential was not signed by the trusted issuer.',
-        );
-      }
-      add('issuer', 'Issuer key equals trusted issuer', 'pass');
+      add('nonce', 'Proof bound to challenge nonce', 'pass');
     } else
       add(
-        'issuer',
-        'Issuer key equals trusted issuer',
+        'nonce',
+        'Proof bound to challenge nonce',
         'not-supported',
-        'issuer key is a private witness in this circuit',
+        'no nonce public input in circuit',
       );
 
-    // 15. Groth16.
+    if (profile.capabilities.epochBinding) {
+      if (sig('epoch') !== challenge.epoch) {
+        add('epoch', 'Proof epoch equals challenge epoch', 'fail');
+        return finish(403, 'denied', 'EPOCH_MISMATCH', "Proof's epoch differs from the challenge.");
+      }
+      add('epoch', 'Proof epoch equals challenge epoch', 'pass');
+    } else add('epoch', 'Proof epoch equals challenge epoch', 'not-supported');
+
+    if (profile.capabilities.expiryCheck) {
+      if (sig('now') !== challenge.now) {
+        add('time', "Proof's now equals the challenge's now (expiry checked in-circuit)", 'fail');
+        return finish(
+          403,
+          'denied',
+          'TIME_MISMATCH',
+          "Proof's now differs from the challenge (an old now could revive an expired credential).",
+        );
+      }
+      add('time', "Proof's now equals the challenge's now (expiry checked in-circuit)", 'pass');
+    } else add('time', 'Credential expiry enforced', 'not-supported', 'no expiry/now input');
+
+    // Obligation 1: Groth16.
     const v = await this.d.verifier.verify(art.vkey, req.publicSignals, req.proof);
     groth = { valid: v.valid, verifyMs: v.durationMs, verifier: this.d.verifier.kind };
     if (!v.valid) {
       add('groth16', 'Groth16 proof verifies (snarkjs)', 'fail');
-      return finish(403, 'denied', 'PROOF_INVALID', 'Cryptographic proof verification failed.');
+      return finish(403, 'denied', 'PROOF_INVALID', 'Groth16 verification failed.');
     }
     add('groth16', 'Groth16 proof verifies (snarkjs)', 'pass', `${v.durationMs.toFixed(1)} ms`);
-
     add(
       'attributes',
       CAPABILITY_LABELS.attributeBinding,
       profile.capabilities.attributeBinding ? 'pass' : 'not-supported',
     );
 
-    // 16. Authorization gate: every required guarantee must be cryptographically established.
-    //     Runs BEFORE the nullifier is recorded so a blocked attempt never consumes rate-limit budget.
+    // Authorization gate, before the nullifier so a blocked attempt never consumes rate-limit budget.
     const eligibility = this.authorizationEligible();
     if (!eligibility.eligible) {
       add(
@@ -478,13 +526,13 @@ export class VerificationPipeline {
         424,
         'blocked',
         'PROFILE_NOT_AUTHORIZATION_ELIGIBLE',
-        'Proof is mathematically valid, but this circuit does not establish the required authorization statement. No session issued.',
+        'Proof is mathematically valid, but this circuit/key does not establish the required authorization statement. No session issued.',
         { missingGuarantees: eligibility.missing },
       );
     }
     add('authorization', 'All required security guarantees established', 'pass');
 
-    // 17. Nullifier (only values from a verified proof of an eligible circuit are recorded).
+    // Obligation 7: (nullifier, epoch) admitted at most NULLIFIER_MAX_PER_EPOCH times.
     if (profile.capabilities.nullifier) {
       nullifier = sig('nullifier') ?? null;
       const r = this.d.nullifiers.record(resource, challenge.epoch, nullifier ?? '');
@@ -507,7 +555,7 @@ export class VerificationPipeline {
           429,
           'denied',
           'NULLIFIER_RATE_LIMITED',
-          'Same nullifier already used in this epoch: rate limited.',
+          'Same nullifier already admitted in this epoch: rate limited.',
         );
       }
       add(
@@ -524,7 +572,7 @@ export class VerificationPipeline {
         'circuit has no nullifier output',
       );
 
-    const session = this.d.sessions.issue(resource, trustedRoot.trusted!);
+    const session = this.d.sessions.issue(resource, sig('root')!);
     this.d.bus.publish({
       type: 'session.issued',
       source: 'zk-gateway',
@@ -537,9 +585,7 @@ export class VerificationPipeline {
       'granted',
       'ACCESS_GRANTED',
       `Access to ${RESOURCES[resource].name} granted for ${config.SESSION_TTL_SECONDS / 60} minutes.`,
-      {
-        session: { resource, expiresAt: new Date(session.expiresAt).toISOString() },
-      },
+      { session: { resource, expiresAt: new Date(session.expiresAt).toISOString() } },
       session,
     );
   }

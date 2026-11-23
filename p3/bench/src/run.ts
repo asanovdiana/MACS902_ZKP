@@ -5,8 +5,16 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { cpus, platform, release, totalmem } from 'node:os';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
+import { cpus, platform, release, tmpdir, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import * as snarkjs from 'snarkjs';
@@ -154,6 +162,7 @@ if (artifactsAvailable(ART)) {
   const config = loadConfig({
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
+    ZK_PROFILE: 'p1-integrated-v3',
     REGISTRY_URL: registryUrl,
     ROOT_CACHE_MS: process.env.BENCH_ROOT_CACHE_MS ?? '2000',
     MAX_OUTSTANDING_CHALLENGES: '100000',
@@ -328,17 +337,204 @@ if (artifactsAvailable(ART)) {
   }
 }
 
+// ---- Team v4 stack (her issuer + her client prover + this gateway, real proofs) ----
+{
+  const TEAM = resolve(REPO_ROOT, '..');
+  const req = createRequire(import.meta.url);
+  const has = [
+    'issuer/src/server.js',
+    'client/src/index.js',
+    'circuits/setup/integrated_access_v4.zkey',
+  ].every((f) => existsSync(resolve(TEAM, f)));
+  if (!has) {
+    blocked(
+      'v4-prove',
+      'v4 proving time (team client)',
+      'ms',
+      'team issuer/client/circuit not present',
+    );
+  } else {
+    const v4m = JSON.parse(
+      readFileSync(resolve(TEAM, 'circuits/setup/integrated_access_v4.manifest.json'), 'utf8'),
+    );
+    metrics.push({
+      id: 'v4-constraints',
+      label: 'v4 circuit size (R1CS constraints, --O2)',
+      unit: 'constraints',
+      status: 'measured',
+      samples: 1,
+      median: v4m.constraints,
+      p95: v4m.constraints,
+      min: v4m.constraints,
+      max: v4m.constraints,
+      note: `${v4m.n_public} public signals, depth 16 (from the team manifest)`,
+    });
+    const ADMIN = 'bench-admin-token-0123456789abcdef01';
+    const { loadConfig: issuerConfig } = req(resolve(TEAM, 'issuer/src/config.js'));
+    const { buildServer } = req(resolve(TEAM, 'issuer/src/server.js'));
+    const keyDir = mkdtempSync(join(tmpdir(), 'zkag-bk-'));
+    chmodSync(keyDir, 0o700);
+    const issuerApp = await buildServer({
+      config: issuerConfig({
+        ISSUER_PROFILE: 'v4',
+        ISSUER_ADMIN_TOKEN: ADMIN,
+        ISSUER_KEY_DIR: keyDir,
+        ISSUER_DATA_DIR: mkdtempSync(join(tmpdir(), 'zkag-bd-')),
+        ISSUER_LOG_LEVEL: 'silent',
+      }),
+    });
+    const issuerUrl: string = await issuerApp.listen({ host: '127.0.0.1', port: 0 });
+    const walletRoot = mkdtempSync(join(tmpdir(), 'zkag-bw-'));
+    await req(resolve(TEAM, 'issuer/scripts/seed-personas.js')).seedPersonas({
+      issuerUrl,
+      adminToken: ADMIN,
+      homeRoot: walletRoot,
+      only: ['alice'],
+    });
+    const key = (await (await fetch(`${issuerUrl}/issuer`)).json()).issuer;
+    const wikiSecret = 'bench-zk-secret-v4-0123456789abcdef012';
+    const w4 = createServer(
+      createWiki({ zk: wikiSecret, sso: 'bench-sso-secret-v4-0123456789abcdef01' }),
+    );
+    servers.push(w4);
+    const wiki4 = await listen(w4);
+    const cfg4 = loadConfig({
+      ASSERTION_SECRET_ZK: wikiSecret,
+      UPSTREAM_WIKI_URL: wiki4,
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'silent',
+      ZK_PROFILE: 'integrated-access-v4',
+      REGISTRY_URL: issuerUrl,
+      REGISTRY_ADMIN_TOKEN: ADMIN,
+      TRUSTED_ISSUER_AX: key.Ax,
+      TRUSTED_ISSUER_AY: key.Ay,
+      ALLOW_DEMO_KEYS: 'true',
+      NULLIFIER_MAX_PER_EPOCH: '100',
+      ZK_RATE_LIMIT_PER_MIN: '1000000',
+      MAX_OUTSTANDING_CHALLENGES: '100000',
+    });
+    const { app: gw4 } = createApp({ config: cfg4 });
+    const g4 = createServer(gw4);
+    servers.push(g4);
+    const gw4Url = await listen(g4);
+    const client = req(resolve(TEAM, 'client/src/index.js'));
+    const credential = new client.Wallet({ home: join(walletRoot, 'alice') }).load('alice');
+    const issuer = new client.IssuerClient({ baseUrl: issuerUrl });
+    const n4 = Number(process.env.BENCH_V4_ITERATIONS ?? N);
+    const proveT: number[] = [];
+    const verifyT: number[] = [];
+    const e2eT: number[] = [];
+    const vkey4 = JSON.parse(
+      readFileSync(
+        resolve(TEAM, 'circuits/setup/integrated_access_v4.verification_key.json'),
+        'utf8',
+      ),
+    );
+    let last: { proof: unknown; publicSignals: string[] } | null = null;
+    for (let i = 0; i < n4 + 1; i++) {
+      const t0 = performance.now();
+      // Alternate services: a nullifier is capped at NULLIFIER_MAX_PER_EPOCH per (resource, epoch).
+      const res4 = i % 2 ? 'wiki' : 'file_share';
+      const c = await (await fetch(`${gw4Url}/challenge?resource=${res4}`)).json();
+      const tp = performance.now();
+      const p = await client.prove({ credential, issuer, challenge: c });
+      const provedAt = performance.now();
+      const v = await post(`${gw4Url}/access`, {
+        resource: res4,
+        nonce: c.nonce,
+        proof: p.proof,
+        publicSignals: p.publicSignals,
+      });
+      const t1 = performance.now();
+      if (v.status !== 200)
+        throw new Error(`v4 bench: gateway answered ${v.status} ${JSON.stringify(v.body)}`);
+      if (i === 0) continue; // warm-up
+      proveT.push(provedAt - tp);
+      e2eT.push(t1 - t0);
+      last = p;
+    }
+    for (let i = 0; i < N; i++) {
+      const t0 = performance.now();
+      const ok = await snarkjs.groth16.verify(vkey4, last!.publicSignals, last!.proof);
+      verifyT.push(performance.now() - t0);
+      if (!ok) throw new Error('v4 verify failed');
+    }
+    measured(
+      'v4-prove',
+      'v4 proving, native Node (team client: path fetch + witness + Groth16 + local verify)',
+      'ms',
+      proveT,
+      'client.prove() incl. Merkle path fetch from the issuer and the client-side verification it performs',
+    );
+    measured(
+      'v4-verify',
+      'v4 verify time (snarkjs groth16.verify, warm, 12 public signals)',
+      'ms',
+      verifyT,
+    );
+    measured(
+      'v4-e2e',
+      'v4 end to end: challenge → prove → /access ADMIT (HTTP)',
+      'ms',
+      e2eT,
+      'real issuer (in-process), real proofs, session issued every time',
+    );
+    metrics.push({
+      id: 'v4-proof-size',
+      label: 'v4 proof size (BN254 Groth16, uncompressed affine)',
+      unit: 'bytes',
+      status: 'measured',
+      samples: proveT.length,
+      median: 256,
+      p95: 256,
+      min: 256,
+      max: 256,
+      note: `${Buffer.byteLength(JSON.stringify(last!.proof))} B as JSON`,
+    });
+    // Session-authorized proxied request (like-for-like with the SSO per-request measurement).
+    const cs = await (await fetch(`${gw4Url}/challenge?resource=wiki`)).json();
+    const ps = await client.prove({ credential, issuer, challenge: cs });
+    const adm = await fetch(`${gw4Url}/access`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        resource: 'wiki',
+        nonce: cs.nonce,
+        proof: ps.proof,
+        publicSignals: ps.publicSignals,
+      }),
+    });
+    const cookie = adm.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('zkag_wiki='))
+      ?.split(';')[0];
+    if (adm.status !== 200 || !cookie)
+      throw new Error(`v4 bench: session admit failed (${adm.status})`);
+    const sessT: number[] = [];
+    for (let i = 0; i < N + 1; i++) {
+      const t0 = performance.now();
+      const r = await fetch(`${gw4Url}/svc/wiki/`, { headers: { cookie } });
+      await r.arrayBuffer();
+      if (r.status !== 200) throw new Error(`v4 session request ${r.status}`);
+      if (i > 0) sessT.push(performance.now() - t0);
+    }
+    measured(
+      'zk-session-request',
+      'ZK gateway: per-request with a session (registry root check + proxy)',
+      'ms',
+      sessT,
+      'like-for-like with the SSO per-request row',
+    );
+    await client.shutdown();
+    await issuerApp.close();
+  }
+}
+
 blocked(
   'keycloak-login',
   'Keycloak login round trip (Authorization Code + PKCE)',
   'ms',
-  'Keycloak not running in this environment (Docker unavailable); measure with docker compose up keycloak',
-);
-blocked(
-  'zk-session-request',
-  'ZK gateway: session-authorized proxied request',
-  'ms',
-  'no authorization-eligible circuit: P1 v3 cannot issue sessions',
+  'not automated: needs an interactive Keycloak browser login (measure manually with docker compose up keycloak)',
 );
 blocked(
   'prove-browser',
@@ -350,7 +546,7 @@ blocked(
   'prove-vs-depth',
   'Proving time vs Merkle depth (8, 16, 20)',
   'ms',
-  'P1 circuit has a fixed depth of 2; parametric depth requires P1',
+  'team depth-8/20 benchmark mains exist (circuits/integrated_access_v4_d8/_d20) but have no committed keys; see npm run perf:v4 at the repo root',
 );
 
 const result = {

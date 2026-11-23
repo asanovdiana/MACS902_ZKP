@@ -36,7 +36,7 @@ export const PERSONAS: Persona[] = [
     name: 'Carol',
     role: 'Admin',
     credentialRef: 'cred-carol',
-    attributes: { role: 'admin', clearance: 3, device: true, department: 'operations' },
+    attributes: { role: 'admin', clearance: 3, device: true, department: 'it' },
     accent: 'from-fuchsia-400 to-violet-500',
   },
 ];

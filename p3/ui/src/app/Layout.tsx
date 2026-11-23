@@ -160,7 +160,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   <ShieldAlert className="h-4 w-4" />
                 )}
                 {status.zkAuthorization === 'ready'
-                  ? 'Real ZK authorization active'
+                  ? status.artifacts.trust === 'demo-accepted'
+                    ? 'Real ZK authorization active · DEMO keys (single-party setup)'
+                    : 'Real ZK authorization active'
                   : status.mode === 'diagnostic-p1'
                     ? 'Diagnostic P1 mode · ZK authorization blocked'
                     : 'ZK authorization blocked'}

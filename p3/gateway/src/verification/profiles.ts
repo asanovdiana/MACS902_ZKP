@@ -16,7 +16,7 @@ export type SignalName =
   | 'deptMask'
   | 'minClearance'
   | 'requireDevice'
-  | 'currentTime'
+  | 'now'
   | 'issuerAx'
   | 'issuerAy';
 
@@ -46,7 +46,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
 };
 
 export interface CircuitProfile {
-  id: 'p1-integrated-v3' | 'zkag-access-v1';
+  id: 'p1-integrated-v3' | 'integrated-access-v4';
   circuitId: string;
   title: string;
   /** Ordered exactly as snarkjs emits publicSignals (outputs first, then public inputs). */
@@ -81,23 +81,24 @@ export const PROFILES: Record<CircuitProfile['id'], CircuitProfile> = {
       'Diagnostic only: Groth16 validity is reported, sessions are never issued.',
     ],
   },
-  'zkag-access-v1': {
-    id: 'zkag-access-v1',
-    circuitId: 'zkag_access_v1',
-    title: 'Proposed M3 access circuit (contract, awaiting P1)',
+  'integrated-access-v4': {
+    id: 'integrated-access-v4',
+    circuitId: 'integrated_access_v4',
+    title: 'Team v4 access circuit (integrated_access_v4, depth 16)',
+    // access.public_signals v4 (docs/CONTRACTS.md, ADR 0007): output first, then declaration order.
     signals: [
       'nullifier',
       'root',
-      'nonce',
-      'resourceId',
-      'epoch',
+      'issuerAx',
+      'issuerAy',
       'roleMask',
       'deptMask',
       'minClearance',
       'requireDevice',
-      'currentTime',
-      'issuerAx',
-      'issuerAy',
+      'now',
+      'nonce',
+      'resourceId',
+      'epoch',
     ],
     capabilities: {
       rootBinding: true,
@@ -112,8 +113,9 @@ export const PROFILES: Record<CircuitProfile['id'], CircuitProfile> = {
     },
     policyCoverage: ['wiki', 'file-share', 'admin-panel'],
     notes: [
-      'Signal layout defined in contracts/public-signals.zkag-access-v1.json (PROPOSED).',
-      'Capabilities are claims of the contract; authorization additionally requires manifest.securityReview.status === "accepted".',
+      'attrHash = Poseidon(7)(role, dept, clearance, deviceCompliant, employeeActive, expiry, commitment) is the signed message and the Merkle leaf.',
+      'Issuer key, policy, now, nonce, resourceId and epoch are public inputs; nullifier = Poseidon(3)(secret, resourceId, epoch).',
+      'Gateway enforces contract obligations 1–8 (issuer pin, root staleness rule, policy, challenge now/epoch, nonce, nullifier).',
     ],
   },
 };

@@ -1,10 +1,10 @@
 import type { ResourceId } from './resources.js';
 
-/** Roles from the Project Scope (M1). Numeric encoding below is PROPOSED, not confirmed by P1/P2. */
+/** Roles from the Project Scope (M1). Codes per team ADR 0008 (engineer 0, admin 1, contractor 2, finance 3). */
 export const ROLES = ['engineer', 'admin', 'contractor', 'finance'] as const;
 export type Role = (typeof ROLES)[number];
 
-/** Proposed bit positions for role_mask (bit i set => role with code i allowed). */
+/** Bit positions for roleMask (bit i set => role with code i allowed), ADR 0008. */
 export const PROPOSED_ROLE_CODES: Record<Role, number> = {
   engineer: 0,
   admin: 1,
@@ -50,11 +50,11 @@ export function roleMask(roles: readonly Role[]): bigint {
   return roles.reduce((mask, r) => mask | (1n << BigInt(PROPOSED_ROLE_CODES[r])), 0n);
 }
 
-/** Policy parameters as they would appear as circuit public inputs (proposed encoding). */
+/** Policy parameters exactly as the v4 circuit's public inputs (team CONTRACTS.md demo policies). */
 export function policyPublicParams(policy: AccessPolicy) {
   return {
     roleMask: roleMask(policy.allowedRoles),
-    /** Scope policies do not restrict department: all 4 departments allowed (proposed encoding). */
+    /** Scope policies do not restrict department: all 4 departments allowed (deptMask 15). */
     deptMask: 0b1111n,
     minClearance: BigInt(policy.minClearance),
     requireDevice: policy.requireDeviceCompliant ? 1n : 0n,

@@ -109,11 +109,21 @@ the [privacy comparison](privacy-comparison.md).
 **Safety tier status.** F3.09, F4.06, F5.07 and F7.05 are the gateway halves of floors 3, 4, 5
 and 7.
 
-<!-- SAFETY-COUNTS -->
+All four are real tests against the real v4 gateway since 2026-11-23: they drive the client
+protocol (`GET /challenge`, `POST /access`) with the committed v4 proof fixtures, the gateway's
+built-in `integrated-access-v4` profile and its own Groth16 verifier. The safety tier
+(`tests/safety`, 85 tests) passes **83 with 0 failing**; the 2 `todo` are F9.06 and F9.12, superseded
+by the stricter F9.12 and F9.13 under the append-only rule (`tests/safety/README.md`); the
+team attack suite runs all 9 attacks against the gateway with real proofs and no skipped step,
+including the 125 s nonce expiry of `replay_expired` (`p3/gateway/tests/team-v4.e2e.test.ts`).
 
 **Continuous integration.**
 
-<!-- CI-STATUS -->
+Every push and pull request to `main` runs [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
+on GitHub Actions with four jobs: `circuits` (the full circuit suite with circom 2.2.3, artifact and
+reference-vector checks), `identity` (issuer, client, attack suite), `safety` (the floor tier above)
+and `p3` (typecheck, lint, format, tests, build). Locally the same suites run with `make test`; the
+Docker demo starts with `make demo`.
 
 ## 9. Privacy comparison
 
@@ -126,16 +136,26 @@ links requests within one service and 10-minute epoch only.
 
 ### Trusted setup
 
-Groth16 needs a circuit-specific setup whose leftover secret could forge proofs. The committed v4
-keys are **DEV-ONLY**: phase 1 is a public ceremony (PSE Perpetual Powers of Tau, contribution
-0080, power 15) and phase 2 is a **single local contribution plus a beacon**
-([`circuits/setup/integrated_access_v4.manifest.json`](../../circuits/setup/integrated_access_v4.manifest.json),
-fields `ptau` and `phase2`). Whoever ran phase 2 could forge proofs, so the keys are for tests and the
-demo only; the gateway accepts them only with `ALLOW_DEMO_KEYS=true`, which production mode refuses.
+Groth16 needs a circuit-specific setup whose leftover secret could forge proofs. Phase 1 is a public
+ceremony (PSE Perpetual Powers of Tau, contribution 0080, power 15). On 2026-11-23 the v4 phase 2 was
+re-run as a **three-contribution ceremony** closed by a public random beacon announced in advance
+(drand mainnet round 6667474), following [`circuits/ceremony/README.md`](../../circuits/ceremony/README.md):
+each contributor verified the chain before adding to it, published its contribution hash before
+passing the key on, and checked the final key
+([`docs/ceremony/v4-ceremony-log.md`](../ceremony/v4-ceremony-log.md); transcript and manifest in
+[`circuits/ceremony/integrated_access_v4/`](../../circuits/ceremony/integrated_access_v4/)).
+
+**This ceremony was simulated.** The three contributions were made by separate AI agent processes on
+one machine under one operator, so the multi-party guarantee — sound if at least one contributor is
+honest and independent — does **not** hold: whoever controlled that machine could in principle have
+kept every contribution's randomness. The keys are therefore labelled **DEMO-ONLY, not for production**
+([`circuits/setup/integrated_access_v4.manifest.json`](../../circuits/setup/integrated_access_v4.manifest.json)),
+and the gateway accepts them only with `ALLOW_DEMO_KEYS=true`, which production mode refuses. What the
+run does show is that the full procedure works end to end and that its transcript verifies. For any real
+use the ceremony must be repeated with team members contributing on their own machines. The v3 keys
+(the P1 baseline, not admissible at the gateway) were not re-keyed and stay single-party DEV-ONLY.
 (The circuit chapter, section 4, describes an earlier locally generated phase 1; the manifest is the
 current record.)
-
-<!-- CEREMONY-RESULT -->
 
 ### Other limitations
 

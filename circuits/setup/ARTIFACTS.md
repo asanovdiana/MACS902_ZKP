@@ -18,26 +18,36 @@ All four come from one `setup.sh` run; the zkey and wasm were copied byte for by
 `DEMO-ONLY (single-party phase 2) ...`. The wasm is byte-identical to the previous commit (same
 circuit); the zkey and vkey are new. v3 has no committed proof fixtures.
 
-## `integrated_access_v4` (G1-S1-CIRC-037, ADR 0009; re-keyed G2-S1-CIRC-040a, DEMO-ONLY)
+## `integrated_access_v4` (G1-S1-CIRC-037, ADR 0009; re-keyed G2-S1-CIRC-040a; ceremony keys G2-S1-FINAL-001, DEMO-ONLY)
 
 The product key: depth 16, 9208 constraints at `--O2`, 12 public signals in
 `access.public_signals v4` order. First committed with a DEV-ONLY phase 1 (G1-S1-CIRC-037); re-keyed on
-PSE ppot 0080 in G2-S1-CIRC-040a, in one commit with its fixtures. The r1cs is unchanged
-(`r1cs_sha256` `652dae08...`); the wasm bytes differ from the first commit with the same size (rebuilt
-from the current tree), the zkey and vkey are new.
+PSE ppot 0080 in G2-S1-CIRC-040a, in one commit with its fixtures. Re-keyed again in
+G2-S1-FINAL-001 from the **simulated** 3-party phase-2 ceremony (`npm run ceremony:install --
+integrated_access_v4`, same commit as the regenerated fixtures). The r1cs (`r1cs_sha256`
+`652dae08...`) and the wasm are byte-identical to G2-S1-CIRC-040a; the zkey (the ceremony's
+`integrated_access_v4_final.zkey`), vkey and manifest are new.
+
+**Simulated, not a real multi-party ceremony.** The three contributions were made by separate AI
+agent processes on **one machine under one operator**, closed by the public drand mainnet beacon
+round 6667474 announced in advance. Whoever controlled that machine could in principle have kept
+every contribution's randomness, so the multi-party trust guarantee does **not** hold: the key is
+**DEMO-ONLY, not for production**. Record: [`docs/ceremony/v4-ceremony-log.md`](../../docs/ceremony/v4-ceremony-log.md);
+transcript `circuits/ceremony/integrated_access_v4/transcript.json` (sha256 = manifest
+`phase2.transcript_sha256`).
 
 | File | Size | sha256 (= manifest field) |
 |---|---|---|
-| `circuits/setup/integrated_access_v4.zkey` | 6,110,160 B (5.8 MiB) | `08ea2e979593146d3914fd8fc24fac20edd37005450babc890f8af9f55a8bbb2` (`zkey_sha256`) |
+| `circuits/setup/integrated_access_v4.zkey` | 6,111,048 B (5.8 MiB) | `73f527f371539c34b4507f6f2c395fd9be2f0c2df53fd5af9df2caa8749d85e3` (`zkey_sha256`) |
 | `circuits/setup/integrated_access_v4.wasm` | 4,161,091 B (4.0 MiB) | `b6651dd53459fe72ae8bc4483385868500d55012a7f5f5418fee8dc8af49770b` (`wasm_sha256`) |
-| `circuits/setup/integrated_access_v4.verification_key.json` | 4,936 B | `ccfe7a47bdbc822604e0e8d6303e374dba9ff0f79b21483ab67504428de80c9a` (`verification_key_sha256`) |
-| `circuits/setup/integrated_access_v4.manifest.json` | 2,683 B | (provenance; holds the three hashes above, `public_signals`, beacon hash) |
+| `circuits/setup/integrated_access_v4.verification_key.json` | 4,937 B | `c5490c184298b14dd5cc8882a351e68b1e5983d54e10fa5c68acb3c7927ae059` (`verification_key_sha256`) |
+| `circuits/setup/integrated_access_v4.manifest.json` | 4,553 B | (provenance; holds the three hashes above, `public_signals`, the 3 contributors, the drand beacon and the transcript sha256) |
 
 Bound to this key, regenerated with it: `circuits/fixtures/v4/` (`npm run prove:fixtures:v4`;
 `fixtures.json` records `zkey_sha256` and `verification_key_sha256`; the script refuses to prove
 with a pair whose hashes differ from the manifest).
 
-## DEMO-ONLY keys (single-party phase 2)
+## DEMO-ONLY keys
 
 Since G2-S1-CIRC-040a, phase 1 of both keys is **PSE Perpetual Powers of Tau, contribution 0080,
 prepared for phase 2** (`ppot_0080_15.ptau`, manifest `ptau.source` = `pse-ppot-0080`, blake2b-512
@@ -45,10 +55,18 @@ prepared for phase 2** (`ppot_0080_15.ptau`, manifest `ptau.source` = `pse-ppot-
 Hermez files the keys were meant to use are no longer downloadable; before this re-key, phase 1
 was the local `pot15_DEV-ONLY_final.ptau`.
 
-Phase 2 is still **single-party** (one urandom contribution + a local beacon; [`README.md`](README.md),
-*Limitations*): **whoever ran setup could forge proofs**. Tests and demos only; replace them via
-the multi-party ceremony before any real use. The manifests keep `status: "DEV-ONLY"` (the label
-`tests/safety` F9.06 checks) and say `status_detail: "DEMO-ONLY (single-party phase 2) ..."`.
+**v3** phase 2 is still **single-party** (one urandom contribution + a local beacon;
+[`README.md`](README.md), *Limitations*): **whoever ran setup could forge proofs**. Its manifest keeps
+`status: "DEV-ONLY"` and says `status_detail: "DEMO-ONLY (single-party phase 2) ..."`.
+
+**v4** phase 2 is the simulated 3-party ceremony above: manifest `status: "DEMO-ONLY"`, 3
+contributors in `phase2.contributors`, public beacon. Because all three contributions ran on one
+machine under one operator, that is no stronger in practice than a single party: **whoever ran the
+machine could forge proofs**.
+
+Both keys: tests and demos only, **not for production**; for any real use re-run the ceremony with
+independent people each contributing on their own machine. `tests/safety` F9.12 checks that each
+manifest's status matches its provenance.
 Committing the zkey does not weaken them further: a Groth16 proving key is public by design; the
 secret is the toxic waste, which is in no file.
 
@@ -92,7 +110,7 @@ fails. `install` produces the layout `setup.sh` leaves, which `prove.sh` reads.
 
 All in **one commit** (`<name>` = `integrated_access_v3` or `integrated_access_v4`).
 
-### Multi-party (the way to replace the DEMO-ONLY single-party keys)
+### Multi-party (the way to replace a DEMO-ONLY key)
 
 Run the phase-2 ceremony in [`circuits/ceremony/README.md`](../ceremony/README.md): each teammate
 contributes on their own machine (`circuits/scripts/ceremony.sh init | contribute | verify |

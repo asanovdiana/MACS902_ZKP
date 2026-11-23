@@ -1,10 +1,10 @@
 {
-  "TEST_ONLY": "TEST-ONLY fixtures built from circuits/test/vectors/v4. Proofs are valid under circuits/setup/integrated_access_v4.verification_key.json, a DEV-ONLY / DEMO-ONLY key (phase 1 PSE ppot 0080; single-party phase 2, so whoever ran setup could forge proofs). Never use outside tests.",
+  "TEST_ONLY": "TEST-ONLY fixtures built from circuits/test/vectors/v4. Proofs are valid under circuits/setup/integrated_access_v4.verification_key.json, a DEMO-ONLY key (phase 1 PSE ppot 0080; multi-party phase 2, 3 contributors + public beacon; all contributions simulated by separate agents on one machine under one operator, so the multi-party guarantee does not hold: docs/ceremony/v4-ceremony-log.md). Not for production. Never use outside tests.",
   "circuit": "circuits/integrated_access_v4.circom",
   "setup_manifest": "circuits/setup/integrated_access_v4.manifest.json",
   "verification_key": "circuits/setup/integrated_access_v4.verification_key.json",
-  "verification_key_sha256": "ccfe7a47bdbc822604e0e8d6303e374dba9ff0f79b21483ab67504428de80c9a",
-  "zkey_sha256": "08ea2e979593146d3914fd8fc24fac20edd37005450babc890f8af9f55a8bbb2",
+  "verification_key_sha256": "c5490c184298b14dd5cc8882a351e68b1e5983d54e10fa5c68acb3c7927ae059",
+  "zkey_sha256": "73f527f371539c34b4507f6f2c395fd9be2f0c2df53fd5af9df2caa8749d85e3",
   "public_signals": [
     "nullifier",
     "root",

@@ -210,6 +210,25 @@ function checkArtefacts() {
   return man;
 }
 
+// The fixtures' TEST_ONLY line follows the committed manifest (tests/safety F9.12): a multi-party
+// DEMO-ONLY key never reads "single-party", a single-party key always does. The G2-S1-FINAL-001
+// ceremony was simulated (separate agents on one machine, one operator; every contributor name says
+// "simulated"), so its line also says the multi-party guarantee does not hold.
+function testOnlyText(man) {
+  const head = `TEST-ONLY fixtures built from circuits/test/vectors/v4. Proofs are valid under circuits/setup/${NAME}.verification_key.json`;
+  const p2 = man.phase2 || {};
+  if (typeof p2.contributions === "number" && p2.contributions >= 2) {
+    const contributors = Array.isArray(p2.contributors) ? p2.contributors : [];
+    const simulated = contributors.length > 0 && contributors.every((c) => /simulated/i.test(c.participant));
+    const why = simulated
+      ? "; all contributions simulated by separate agents on one machine under one operator, so the multi-party guarantee does not hold: docs/ceremony/v4-ceremony-log.md"
+      : "";
+    const status = man.status === "DEMO-ONLY" ? "DEMO-ONLY" : "DEV-ONLY";
+    return `${head}, a ${status} key (phase 1 PSE ppot 0080; multi-party phase 2, ${p2.contributions} contributors + ${p2.beacon_public ? "public" : "local"} beacon${why}). Not for production. Never use outside tests.`;
+  }
+  return `${head}, a DEV-ONLY / DEMO-ONLY key (phase 1 PSE ppot 0080; single-party phase 2, so whoever ran setup could forge proofs). Never use outside tests.`;
+}
+
 async function main() {
   const { out: OUT } = parseArgs(process.argv.slice(2));
   const man = checkArtefacts();
@@ -234,8 +253,7 @@ async function main() {
   // Write only after every proof is made and verified.
   fs.mkdirSync(OUT, { recursive: true });
   const index = {
-    TEST_ONLY:
-      "TEST-ONLY fixtures built from circuits/test/vectors/v4. Proofs are valid under circuits/setup/integrated_access_v4.verification_key.json, a DEV-ONLY / DEMO-ONLY key (phase 1 PSE ppot 0080; single-party phase 2, so whoever ran setup could forge proofs). Never use outside tests.",
+    TEST_ONLY: testOnlyText(man),
     circuit: man.circuit,
     setup_manifest: `circuits/setup/${NAME}.manifest.json`,
     verification_key: `circuits/setup/${NAME}.verification_key.json`,

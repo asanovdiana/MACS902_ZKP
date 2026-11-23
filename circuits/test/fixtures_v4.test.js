@@ -89,8 +89,13 @@ describe("G1-S1-CIRC-037 v4 fixtures (circuits/fixtures/v4)", function () {
       assert.deepEqual(index.public_signals, man.public_signals);
       assert.equal(sha256(path.join(FIX, "verification_key.json")), man.verification_key_sha256);
       assert.match(index.TEST_ONLY, /TEST-ONLY/);
-      assert.match(index.TEST_ONLY, /DEV-ONLY/);
-      assert.match(index.TEST_ONLY, /PSE ppot 0080; single-party phase 2/);
+      // G2-S1-FINAL-001: the key comes from the simulated 3-party ceremony (DEMO-ONLY, never production)
+      assert.equal(man.status, "DEMO-ONLY");
+      assert.match(index.TEST_ONLY, /a DEMO-ONLY key \(phase 1 PSE ppot 0080; multi-party phase 2, 3 contributors \+ public beacon;/);
+      assert.match(index.TEST_ONLY, /simulated by separate agents on one machine under one operator, so the multi-party guarantee does not hold/);
+      assert.match(index.TEST_ONLY, /docs\/ceremony\/v4-ceremony-log\.md/);
+      assert.match(index.TEST_ONLY, /Not for production\. Never use outside tests\./);
+      assert.doesNotMatch(index.TEST_ONLY, /single-party|DEV-ONLY/);
     });
 
     it("contains only README.md, fixtures.json, verification_key.json and <name>/{proof,public}.json", () => {
@@ -104,7 +109,10 @@ describe("G1-S1-CIRC-037 v4 fixtures (circuits/fixtures/v4)", function () {
       for (const n of ALL) assert.match(readme, new RegExp("`" + n + "`"), n);
       assert.match(readme, /replay/i);
       for (const o of [1, 2, 3, 4, 5, 6, 7]) assert.match(readme, new RegExp(`obligation ${o}\\b`), `obligation ${o}`);
-      assert.match(readme, /DEV-ONLY/);
+      assert.match(readme, /\*\*DEMO-ONLY\*\* key/);
+      assert.match(readme, /simulated\*\* by separate agents on one machine/);
+      assert.match(readme, /not for production/);
+      assert.doesNotMatch(readme, /single-party|DEV-ONLY/);
     });
   });
 

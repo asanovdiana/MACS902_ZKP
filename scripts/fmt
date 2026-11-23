@@ -1,9 +1,34 @@
 #!/usr/bin/env bash
-# Format one file by extension. Called by agentic-kit's post-edit hook as `scripts/fmt <file>`.
-set -uo pipefail
-f="${1:?usage: scripts/fmt <file>}"
-case "$f" in
-  *.py) exec uvx ruff format "$f" ;;
-  *.ts|*.tsx|*.js|*.jsx|*.css|*.scss|*.json|*.md) exec npx --no-install prettier --write "$f" ;;
-  *) exit 0 ;;
-esac
+# Formatter entry point (CLAUDE.md "format"; agentic-kit's post-edit hook calls `scripts/fmt <file>`).
+#
+#   scripts/fmt              format the whole p3/ tree with p3's pinned prettier (npm run format)
+#   scripts/fmt <file>...    format each file that lives under p3/ with p3's prettier; any other
+#                            file is left untouched (exit 0)
+#
+# Only p3/ has a formatter config (p3/.prettierrc.json, p3/.prettierignore) and a pinned prettier
+# (p3/package-lock.json). The other trees (circuits, issuer, client, tests, docs) have no agreed
+# formatter, so this script never rewrites them. Needs `npm ci` in p3/ (make install).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+P3="$ROOT/p3"
+PRETTIER="$P3/node_modules/.bin/prettier"
+
+if [ ! -x "$PRETTIER" ]; then
+  echo "scripts/fmt: $PRETTIER missing; run 'make install' (or 'cd p3 && npm ci')" >&2
+  exit 1
+fi
+
+if [ $# -eq 0 ]; then
+  cd "$P3" && exec npm run --silent format
+fi
+
+files=()
+for f in "$@"; do
+  abs="$(cd "$(dirname "$f")" 2>/dev/null && pwd)/$(basename "$f")" || continue
+  case "$abs" in "$P3"/*) files+=("${abs#"$P3"/}") ;; esac
+done
+[ ${#files[@]} -eq 0 ] && exit 0
+# --ignore-unknown: a file prettier has no parser for is skipped, not an error;
+# p3/.prettierignore is honoured because prettier runs from p3/.
+cd "$P3" && exec "$PRETTIER" --write --ignore-unknown -- "${files[@]}"

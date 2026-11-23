@@ -1,0 +1,154 @@
+# ZK Access Gate CI (risk R-007, safety SR-17). One job per suite so a failure is visible by job
+# name. Each job calls the same root Makefile target a developer runs locally.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # engines: root sub-packages >=20, p3 >=20.11
+  NODE_VERSION: "22"
+  CIRCOM_VERSION: "2.2.3"
+
+jobs:
+  circuits:
+    name: circuits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: npm ci (root)
+        run: make install-root
+
+      - name: Set up circom
+        uses: ./.github/actions/setup-circom
+        with:
+          version: ${{ env.CIRCOM_VERSION }}
+
+      - name: Toolchain check
+        run: make check-env
+
+      - name: Cache Powers of Tau
+        uses: actions/cache@v4
+        with:
+          path: ~/zkp-cache/ptau
+          key: ptau-pse-ppot0080-15
+
+      - name: Fetch pinned PSE ptau (power 15, blake2b-checked)
+        run: PTAU_SOURCE=pse PTAU_POWER=15 circuits/scripts/ptau.sh
+
+      - name: Circuit tests (npm test)
+        run: make test-circuits
+
+      - name: Committed artefacts match manifests (artifacts:check)
+        run: make artifacts-check
+
+      - name: Committed vectors up to date (gen-vectors --check)
+        run: make vectors-check
+
+  identity:
+    name: identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            issuer/package-lock.json
+
+      # client/ and client/attacks/ have no lockfile: they resolve deps from the root node_modules.
+      - name: npm ci (root, issuer)
+        run: make install-root install-issuer
+
+      # issuer's cross-check suite (floor 8) compiles the circuits.
+      - name: Set up circom
+        uses: ./.github/actions/setup-circom
+        with:
+          version: ${{ env.CIRCOM_VERSION }}
+
+      - name: issuer, client, client/attacks tests
+        run: make test-identity
+
+  safety:
+    name: safety
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            issuer/package-lock.json
+
+      # tests/safety has no lockfile: it loads snarkjs from the root and fastify via issuer/src.
+      - name: npm ci (root, issuer)
+        run: make install-root install-issuer
+
+      # F8.05 runs the issuer cross-check suite, which compiles the circuits.
+      - name: Set up circom
+        uses: ./.github/actions/setup-circom
+        with:
+          version: ${{ env.CIRCOM_VERSION }}
+
+      - name: Floor tier (tests/safety)
+        run: make test-safety
+
+  p3:
+    name: p3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: p3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: p3/package-lock.json
+
+      - name: npm ci (p3)
+        run: npm ci --no-audit --no-fund
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npm run lint
+
+      - name: format:check
+        run: npm run format:check
+
+      - name: test
+        run: npm test
+
+      - name: build
+        run: npm run build

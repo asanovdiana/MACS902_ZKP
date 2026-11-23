@@ -106,7 +106,8 @@ export function TeamAttackCard({
                       </span>
                       {s.skipped ? (
                         <span className="text-ink-400">
-                          skipped (needs a real 125 s wait; covered by unit tests)
+                          skipped in the live demo (needs a real 125 s wait; runs with real proofs
+                          in the gateway e2e test)
                         </span>
                       ) : (
                         <span className={s.pass ? 'text-ok' : 'text-bad'}>

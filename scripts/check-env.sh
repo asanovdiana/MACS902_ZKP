@@ -3,7 +3,7 @@
 #
 #   scripts/check-env.sh          node >= 20 and circom == 2.2.3 required; docker reported only
 #   scripts/check-env.sh --demo   node >= 20 and docker (with the compose plugin) required; circom
-#                                 reported only (the demo compiles with p3's circom2 WASM build)
+#                                 reported only (the demo uses the committed v4 artefacts)
 #
 # circom is looked up on PATH with ~/.cargo/bin prepended, where
 # `cargo install --git https://github.com/iden3/circom.git --tag v2.2.3 circom` puts it

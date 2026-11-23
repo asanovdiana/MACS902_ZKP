@@ -21,7 +21,7 @@ NPM_CI := npm ci --no-audit --no-fund
 
 .PHONY: help install install-root install-issuer install-p3 check-env check-env-demo \
         test test-all test-circuits test-identity test-safety test-p3 \
-        artifacts-check vectors-check lint types fmt build-p3 ci demo demo-down
+        artifacts-check vectors-check lint types fmt build-p3 ci demo demo-down demo-sso-check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -88,13 +88,15 @@ build-p3: ## p3 production builds (TypeScript + Vite)
 ci: check-env test artifacts-check vectors-check build-p3 ## What CI runs, in one go
 
 # --- demo ---------------------------------------------------------------------------------------
-# p3/Makefile `demo` needs ./p3/artifacts from `p1-build` (circom2 WASM build, installed on demand
-# into p3/tools/circom; no native circom needed) and the persona fixtures from `fixtures`.
-p3/node_modules/.package-lock.json: p3/package-lock.json
-	cd p3 && $(NPM_CI)
-
-demo: check-env-demo p3/node_modules/.package-lock.json ## Docker demo (p3: p1-build, fixtures, docker compose up --build) -> http://localhost:8088
-	$(MAKE) -C p3 p1-build fixtures demo
+# The v4 stack (p3/docker-compose.yml) is self-contained: build context is the repo root, it uses
+# the committed circuits/setup v4 artefacts, and its `setup` service starts the team issuer, enrols
+# the personas and pins the issuer key inside Docker. No host npm install or circom is needed.
+# (p3's p1-build / fixtures targets belong to the legacy v3 diagnostic stack, not this demo.)
+demo: check-env-demo ## Docker demo (p3: docker compose up --build) -> UI http://localhost:8088, Keycloak :8080
+	$(MAKE) -C p3 demo
 
 demo-down: ## Stop the Docker demo
 	$(MAKE) -C p3 demo-down
+
+demo-sso-check: ## Live Keycloak SSO check against the running demo (p3/scripts/sso-live-check.sh)
+	cd p3 && scripts/sso-live-check.sh

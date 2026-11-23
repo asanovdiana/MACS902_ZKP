@@ -33,7 +33,18 @@ export function PerformancePage() {
     );
   if (!q.data) return <Header />;
   const d = q.data;
-  const by = (id: string) => d.metrics.find((m) => m.id === id);
+  const raw = (id: string) => d.metrics.find((m) => m.id === id);
+  // Prefer the team v4 measurements when present; fall back to the P1 v3 diagnostic ones.
+  const V4: Record<string, string> = {
+    verify: 'v4-verify',
+    prove: 'v4-prove',
+    'proof-size': 'v4-proof-size',
+    constraints: 'v4-constraints',
+    'gateway-e2e': 'v4-e2e',
+  };
+  const by = (id: string) =>
+    V4[id] && raw(V4[id]!)?.status === 'measured' ? raw(V4[id]!) : raw(id);
+  const isV4 = raw('v4-verify')?.status === 'measured';
   const latency = d.metrics.filter(
     (m) => m.status === 'measured' && m.unit === 'ms' && m.median !== undefined,
   );
@@ -72,13 +83,13 @@ export function PerformancePage() {
         <Stat
           label="Constraints"
           value={fmt(by('constraints'))?.toLocaleString() ?? '—'}
-          hint="P1 integrated_access_v3"
+          hint={isV4 ? 'team integrated_access_v4' : 'P1 integrated_access_v3'}
         />
         <Stat
           label="ZK gateway e2e"
           value={fmt(by('gateway-e2e'))?.toFixed(1) ?? '—'}
           unit="ms"
-          hint="challenge + verify, HTTP"
+          hint={isV4 ? 'challenge → prove → admit, HTTP' : 'challenge + verify, HTTP'}
         />
       </div>
       <div className="grid gap-6 xl:grid-cols-2">

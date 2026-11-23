@@ -1,24 +1,33 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { GatewayContext } from '../app/createApp.js';
-import { RegistryUnavailableError } from '../registry/registryClient.js';
+import { RegistryUnavailableError } from '../registry/index.js';
 import { correlationId } from '../utils/ids.js';
 
 const credentialId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
-const issueSchema = z
+/** Team enrolment (issuer.admin v1.1): the admin assigns attributes; the employee redeems a one-time code. */
+const enrolSchema = z
   .object({
-    role: z.enum(['engineer', 'admin', 'contractor', 'finance']),
-    dept: z.enum(['engineering', 'operations', 'finance', 'sales']),
-    clearance: z.number().int().min(0).max(3),
-    deviceCompliant: z.boolean(),
-    expiry: z.string().datetime(),
-    secretCommitment: z.string().regex(/^(0|[1-9][0-9]{0,77})$/),
+    employeeId: z.string().regex(/^[A-Za-z0-9._@-]{1,64}$/),
+    attributes: z
+      .object({
+        role: z.number().int().min(0).max(3),
+        dept: z.number().int().min(0).max(3),
+        clearance: z.number().int().min(0).max(3),
+        deviceCompliant: z.union([z.literal(0), z.literal(1)]),
+        employeeActive: z.union([z.literal(0), z.literal(1)]),
+        expiry: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      })
+      .strict(),
+    ttlSeconds: z.number().int().min(60).max(604800).optional(),
   })
   .strict();
+/** P3 stand-in issuance body (kept for the diagnostic profile). */
+const standinIssueSchema = z.object({}).passthrough();
 
 /**
- * Operator-only administration. Credential issuance and revocation are DELEGATED to P2
- * over the documented HTTP contract; the gateway never issues or signs credentials.
+ * Operator-only administration. Issuance and revocation are DELEGATED to P2's issuer over its HTTP
+ * contract; the gateway never signs credentials and never sees attributes after enrolment.
  */
 export function adminRoutes(ctx: GatewayContext) {
   const r = Router();
@@ -31,34 +40,38 @@ export function adminRoutes(ctx: GatewayContext) {
     });
 
   r.get('/registry', async (_req, res) => {
-    const out: Record<string, unknown> = { gatewayRootHistory: ctx.rootHistory };
     try {
-      out.current = await ctx.registry.getCurrentRoot({ maxAgeMs: 0 });
+      const current = await ctx.registry.getCurrentRoot({ maxAgeMs: 0 });
+      const [leaves, history] = await Promise.all([
+        ctx.registry.listLeaves().catch(() => null),
+        ctx.registry.rootHistory().catch(() => null),
+      ]);
+      res.json({
+        api: ctx.registry.api,
+        current,
+        leaves: leaves
+          ? { treeDepth: leaves.treeDepth, root: current.root, leaves: leaves.leaves }
+          : { unavailable: true },
+        history: history ? { items: history } : { unavailable: true },
+        gatewayRootHistory: ctx.rootHistory,
+      });
     } catch (err) {
-      return unavailable(res, err);
+      unavailable(res, err);
     }
-    for (const [key, path] of [
-      ['leaves', '/v1/registry/leaves'],
-      ['history', '/v1/registry/history'],
-    ] as const) {
-      try {
-        const r2 = await ctx.registry.adminRequest('GET', path);
-        out[key] = r2.status === 200 ? r2.body : { unavailable: true, status: r2.status };
-      } catch {
-        out[key] = { unavailable: true };
-      }
-    }
-    res.json(out);
   });
 
   r.post('/credentials', async (req, res) => {
-    const parsed = issueSchema.safeParse(req.body);
-    if (!parsed.success)
+    const parsed =
+      ctx.registry.api === 'issuer-v1'
+        ? enrolSchema.safeParse(req.body)
+        : standinIssueSchema.safeParse(req.body);
+    if (!parsed.success) {
       return res.status(400).json({
         error: { code: 'INVALID_REQUEST', message: parsed.error.issues[0]?.message ?? 'invalid' },
       });
+    }
     try {
-      const up = await ctx.registry.adminRequest('POST', '/v1/credentials', parsed.data);
+      const up = await ctx.registry.issue(parsed.data);
       res.status(up.status).json(up.body);
     } catch (err) {
       unavailable(res, err);
@@ -72,10 +85,7 @@ export function adminRoutes(ctx: GatewayContext) {
         .status(400)
         .json({ error: { code: 'INVALID_REQUEST', message: 'invalid credential id' } });
     try {
-      const up = await ctx.registry.adminRequest(
-        'GET',
-        `/v1/credentials/${encodeURIComponent(id.data)}/status`,
-      );
+      const up = await ctx.registry.credentialStatus(id.data);
       res.status(up.status).json(up.body);
     } catch (err) {
       unavailable(res, err);
@@ -89,14 +99,9 @@ export function adminRoutes(ctx: GatewayContext) {
         .status(400)
         .json({ error: { code: 'INVALID_REQUEST', message: 'invalid credential id' } });
     try {
-      const up = await ctx.registry.adminRequest(
-        'POST',
-        `/v1/credentials/${encodeURIComponent(id.data)}/revoke`,
-        {},
-      );
-      let root: string | null = null;
+      const up = await ctx.registry.revoke(id.data);
       if (up.status === 200) {
-        root = (await ctx.registry.getCurrentRoot({ maxAgeMs: 0 })).root; // triggers root.changed + session invalidation
+        const root = (await ctx.registry.getCurrentRoot({ maxAgeMs: 0 })).root; // root.changed + session invalidation
         ctx.bus.publish({
           type: 'credential.revoked',
           source: 'registry',
@@ -111,15 +116,15 @@ export function adminRoutes(ctx: GatewayContext) {
     }
   });
 
-  /** Demo reset: clears gateway state and asks the registry (if it supports it) to reset. */
+  /** Demo reset: clears gateway state; asks the registry to reset only if it supports it. */
   r.post('/demo/reset', async (_req, res) => {
     ctx.challenges.clear();
     ctx.nullifiers.clear();
     ctx.sessions.clear();
-    let registryReset: unknown = 'unsupported';
+    let registryReset = 'not supported (revocation is permanent in the team issuer)';
     try {
-      const up = await ctx.registry.adminRequest('POST', '/v1/admin/reset', {});
-      registryReset = up.status === 200 ? 'ok' : `status ${up.status}`;
+      const up = await ctx.registry.reset();
+      if (up) registryReset = up.status === 200 ? 'ok' : `status ${up.status}`;
       await ctx.registry.getCurrentRoot({ maxAgeMs: 0 });
     } catch {
       registryReset = 'registry unavailable';
@@ -132,7 +137,9 @@ export function adminRoutes(ctx: GatewayContext) {
     const s = ctx.reloadArtifacts();
     res.json({
       status: s.status,
-      ...(s.status === 'ready' ? { circuitId: s.manifest.circuitId } : { detail: s.detail }),
+      ...(s.status === 'ready'
+        ? { circuitId: s.manifest.circuitId, trust: s.trust }
+        : { detail: s.detail }),
     });
   });
   return r;

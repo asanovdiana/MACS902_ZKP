@@ -57,7 +57,7 @@ describe('P2 diagnostic stand-in (contract conformance)', () => {
             .post('/v1/prover/proofs')
             .send({
               credentialRef: 'cred-alice',
-              challenge: { ...challenge, profile: 'zkag-access-v1' },
+              challenge: { ...challenge, profile: 'integrated-access-v4' },
             })
         ).status,
       ).toBe(409);

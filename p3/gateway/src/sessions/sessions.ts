@@ -65,11 +65,15 @@ export class SessionStore {
     return s;
   }
 
-  /** Invalidate every session issued under a root other than `currentRoot`. */
-  revokeStaleRoots(currentRoot: string): ZkSession[] {
+  distinctRoots(): string[] {
+    return [...new Set([...this.sessions.values()].map((s) => s.root))];
+  }
+
+  /** Invalidate every session authorized under `root`. */
+  revokeByRoot(root: string): ZkSession[] {
     const revoked: ZkSession[] = [];
     for (const s of this.sessions.values()) {
-      if (s.root !== currentRoot) {
+      if (s.root === root) {
         this.sessions.delete(s.id);
         revoked.push(s);
       }

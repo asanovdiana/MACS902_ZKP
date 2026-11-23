@@ -1,5 +1,7 @@
 /**
- * Exercises the session / proxy / nullifier path for the PROPOSED zkag-access-v1 profile.
+ * Exercises the gateway logic for the team v4 profile (integrated-access-v4) with a Groth16 TEST
+ * DOUBLE, so every obligation can be violated in isolation. Real v4 proofs are covered by
+ * team-v4.e2e.test.ts (her issuer + attack suite against this gateway).
  * P1 has not delivered such a circuit, so the Groth16 verifier here is an explicit TEST
  * DOUBLE injected through `testOverrides` (not selectable via configuration). These tests
  * validate the gateway's own logic, not cryptographic soundness.
@@ -47,18 +49,20 @@ const reviewedArtifacts =
   () => ({
     status: 'ready',
     reviewed,
+    trust: reviewed ? 'reviewed' : 'unreviewed',
     vkeySha256: 'test-double',
     vkey: { protocol: 'groth16', curve: 'bn128', nPublic: 12 },
     manifest: {
-      circuitId: 'zkag_access_v1',
-      profile: 'zkag-access-v1',
+      circuitId: 'integrated_access_v4',
       version: 'test',
       proofSystem: 'groth16',
       curve: 'bn128',
       nPublic: 12,
-      publicSignals: [...PROFILES['zkag-access-v1'].signals],
+      publicSignals: [...PROFILES['integrated-access-v4'].signals],
       securityStatus: 'test',
-      files: { verificationKey: { path: 'x', sha256: 'x' } },
+      vkeyPath: 'x',
+      vkeySha256: 'x',
+      manifestPath: 'x',
     },
   });
 const proof = (valid = true) => ({
@@ -94,7 +98,7 @@ function setup(opts: { reviewed?: boolean; issuer?: boolean; maxPerEpoch?: strin
   const clock = new FakeClock();
   const registry = new FakeRegistry(ROOT);
   const config = testConfig({
-    ZK_PROFILE: 'zkag-access-v1',
+    ZK_PROFILE: 'integrated-access-v4',
     ASSERTION_SECRET_ZK: ZK_SECRET,
     UPSTREAM_WIKI_URL: upstream.wiki!,
     UPSTREAM_FILE_SHARE_URL: upstream['file-share']!,
@@ -116,7 +120,7 @@ function setup(opts: { reviewed?: boolean; issuer?: boolean; maxPerEpoch?: strin
   const challenge = async (resource: ResourceId) =>
     (await request(app).post('/api/zk/challenges').send({ resource }).expect(201)).body;
   const signals = (
-    c: { nonce: string; epoch: string; resource: ResourceId },
+    c: { nonce: string; epoch: string; now: string; resource: ResourceId },
     o: Record<string, string> = {},
   ) => {
     const p = policyPublicParams(POLICIES[c.resource]);
@@ -130,12 +134,12 @@ function setup(opts: { reviewed?: boolean; issuer?: boolean; maxPerEpoch?: strin
       deptMask: p.deptMask.toString(),
       minClearance: p.minClearance.toString(),
       requireDevice: p.requireDevice.toString(),
-      currentTime: String(Math.floor(clock.now() / 1000)),
+      now: c.now,
       issuerAx: ISSUER.ax,
       issuerAy: ISSUER.ay,
       ...o,
     };
-    return PROFILES['zkag-access-v1'].signals.map((n) => v[n]!);
+    return PROFILES['integrated-access-v4'].signals.map((n) => v[n]!);
   };
   const grant = async (resource: ResourceId, o: Record<string, string> = {}) => {
     const c = await challenge(resource);
@@ -235,7 +239,7 @@ describe('full-capability profile: authorization, sessions and proxy', () => {
       [{ minClearance: '0' }, 'POLICY_PARAMS_MISMATCH', 'admin-panel'],
       [{ roleMask: '15' }, 'POLICY_PARAMS_MISMATCH', 'file-share'],
       [{ issuerAx: '999' }, 'ISSUER_UNTRUSTED'],
-      [{ currentTime: '1' }, 'TIME_OUT_OF_RANGE'],
+      [{ now: '1' }, 'TIME_MISMATCH'],
       [{ root: '1' }, 'ROOT_MISMATCH'],
     ];
     for (const [o, reason, resource] of cases) {
@@ -297,7 +301,9 @@ describe('full-capability profile: authorization, sessions and proxy', () => {
     );
     const r = await setup({ reviewed: false }).grant('wiki');
     expect(r.body.decision).toBe('blocked');
-    expect(r.body.missingGuarantees).toContain('Accepted security review of circuit artifacts');
+    expect(r.body.missingGuarantees).toEqual(
+      expect.arrayContaining([expect.stringMatching(/security review/)]),
+    );
   });
 
   it('readiness is "ready" only when everything is established', async () => {
@@ -504,5 +510,210 @@ describe('security review regressions', () => {
     const cookie = cookieFrom((await grant('wiki')).headers['set-cookie'], 'zkag_wiki')!;
     const r = await request(app).get('/svc/wik%69/articles').set('Cookie', cookie);
     expect(r.status).toBe(400);
+  });
+});
+
+describe('team client protocol (GET /challenge, POST /access)', () => {
+  const teamSignals = (
+    c: {
+      nonce: string;
+      resourceId: number;
+      epoch: number;
+      now: number;
+      policy: Record<string, number>;
+    },
+    o: Record<string, string> = {},
+  ) => {
+    const v: Record<string, string> = {
+      nullifier: o.nullifier ?? String(Math.floor(Math.random() * 1e9)),
+      root: ROOT,
+      issuerAx: ISSUER.ax,
+      issuerAy: ISSUER.ay,
+      roleMask: String(c.policy.roleMask),
+      deptMask: String(c.policy.deptMask),
+      minClearance: String(c.policy.minClearance),
+      requireDevice: String(c.policy.requireDevice),
+      now: String(c.now),
+      nonce: c.nonce,
+      resourceId: String(c.resourceId),
+      epoch: String(c.epoch),
+      ...o,
+    };
+    return PROFILES['integrated-access-v4'].signals.map((n) => v[n]!);
+  };
+
+  it('issues exactly the five challenge fields the client accepts', async () => {
+    const { app } = setup();
+    const r = await request(app).get('/challenge?resource=file_share').expect(200);
+    expect(Object.keys(r.body).sort()).toEqual(['epoch', 'nonce', 'now', 'policy', 'resourceId']);
+    expect(r.body).toMatchObject({
+      resourceId: 2,
+      policy: { roleMask: 3, deptMask: 15, minClearance: 2, requireDevice: 0 },
+    });
+    expect(r.body.epoch).toBe(Math.floor(r.body.now / 600));
+    expect(typeof r.body.nonce).toBe('string');
+    expect((await request(app).get('/challenge?resource=file-share')).body.error.code).toBe(
+      'UNKNOWN_RESOURCE',
+    );
+  });
+
+  it('admits a valid request with a session cookie and answers denials with the team codes', async () => {
+    const { app } = setup();
+    const get = async (resource = 'wiki') =>
+      (await request(app).get(`/challenge?resource=${resource}`)).body;
+    const access = (body: object) => request(app).post('/access').send(body);
+    const c = await get();
+    const ok = await access({
+      resource: 'wiki',
+      nonce: c.nonce,
+      proof: proof(),
+      publicSignals: teamSignals(c),
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.body.admitted).toBe(true);
+    expect(cookieFrom(ok.headers['set-cookie'], 'zkag_wiki')).toBeDefined();
+
+    const codeOf = async (body: object) => {
+      const r = await access(body);
+      return `${r.status} ${r.body.error?.code}`;
+    };
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: c.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(c),
+      }),
+    ).toBe('403 NONCE_USED');
+    expect(
+      await codeOf({ resource: 'wiki', nonce: '12345', proof: proof(), publicSignals: [] }),
+    ).toBe('403 NONCE_UNKNOWN');
+    expect(
+      await codeOf({ resource: 'payroll', nonce: '1', proof: proof(), publicSignals: [] }),
+    ).toBe('404 UNKNOWN_RESOURCE');
+    expect(await codeOf({ resource: 'wiki' })).toBe('400 MALFORMED_REQUEST');
+    let x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { issuerAx: '9' }),
+      }),
+    ).toBe('403 ISSUER_NOT_PINNED');
+    x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { root: '5' }),
+      }),
+    ).toBe('403 ROOT_NOT_CURRENT');
+    x = await get('admin_panel');
+    expect(
+      await codeOf({
+        resource: 'admin_panel',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { minClearance: '0' }),
+      }),
+    ).toBe('403 POLICY_MISMATCH');
+    x = await get('admin_panel');
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x),
+      }),
+    ).toBe('403 POLICY_MISMATCH');
+    x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { now: String(x.now - 1) }),
+      }),
+    ).toBe('403 CHALLENGE_MISMATCH');
+    x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(false),
+        publicSignals: teamSignals(x),
+      }),
+    ).toBe('403 PROOF_INVALID');
+    x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { nullifier: '7' }),
+      }),
+    ).toBe('200 undefined');
+    x = await get();
+    expect(
+      await codeOf({
+        resource: 'wiki',
+        nonce: x.nonce,
+        proof: proof(),
+        publicSignals: teamSignals(x, { nullifier: '7' }),
+      }),
+    ).toBe('429 RATE_LIMITED');
+  });
+
+  it('expired nonce → NONCE_EXPIRED', async () => {
+    const { app, clock } = setup();
+    const c = (await request(app).get('/challenge?resource=wiki')).body;
+    clock.advance(121_000);
+    const r = await request(app)
+      .post('/access')
+      .send({ resource: 'wiki', nonce: c.nonce, proof: proof(), publicSignals: teamSignals(c) });
+    expect(r.body.error.code).toBe('NONCE_EXPIRED');
+  });
+});
+
+describe('registry staleness semantics', () => {
+  it('a session survives enrolments (insert-only root changes) but not a revocation', async () => {
+    const { app, grant, registry } = setup();
+    const cookie = cookieFrom((await grant('wiki')).headers['set-cookie'], 'zkag_wiki')!;
+    registry.setRoot('2001', 'insert');
+    registry.setRoot('2002', 'insert');
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await request(app).get('/svc/wiki/').set('Cookie', cookie)).status).toBe(200);
+    registry.setRoot('2003', 'revoke');
+    await new Promise((r) => setTimeout(r, 10));
+    expect((await request(app).get('/svc/wiki/').set('Cookie', cookie)).status).toBe(401);
+  });
+  it('a proof against a root superseded only by inserts is accepted; after a revocation it is not', async () => {
+    const { app, challenge, signals, registry } = setup();
+    registry.setRoot('3001', 'insert');
+    let c = await challenge('wiki');
+    expect(
+      (
+        await request(app)
+          .post('/api/zk/verify')
+          .send({
+            challengeId: c.challengeId,
+            proof: proof(),
+            publicSignals: signals(c, { nullifier: '31' }),
+          })
+      ).status,
+    ).toBe(200);
+    registry.setRoot('3002', 'revoke');
+    c = await challenge('wiki');
+    const r = await request(app)
+      .post('/api/zk/verify')
+      .send({
+        challengeId: c.challengeId,
+        proof: proof(),
+        publicSignals: signals(c, { nullifier: '32' }),
+      });
+    expect(r.body.reason).toBe('ROOT_MISMATCH');
+    expect(r.body.code).toBe('ROOT_NOT_CURRENT');
   });
 });

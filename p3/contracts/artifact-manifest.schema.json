@@ -15,7 +15,7 @@
   ],
   "properties": {
     "circuitId": { "type": "string" },
-    "profile": { "enum": ["p1-integrated-v3", "zkag-access-v1"] },
+    "profile": { "enum": ["p1-integrated-v3", "integrated-access-v4"] },
     "version": { "type": "string" },
     "proofSystem": { "const": "groth16" },
     "curve": { "const": "bn128" },

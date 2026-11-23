@@ -43,6 +43,18 @@ import {
 import type { ResourceId } from '../types/api';
 import { useProverHealth } from '../app/Layout';
 
+const NO_PROOF_REASON: Record<string, string> = {
+  POLICY_NOT_SATISFIED:
+    "The holder's own client checked the issuer-signed attributes against this service's policy and refused: the circuit would reject the witness, so no valid proof can exist.",
+  CREDENTIAL_EXPIRED: 'The credential has expired; the circuit enforces now < expiry.',
+  EMPLOYEE_INACTIVE: 'The credential is marked inactive; the circuit requires employeeActive = 1.',
+  NOT_ISSUED: 'This persona has no issued credential yet (run npm run v4:setup).',
+  revoked:
+    'The credential was revoked: the issuer no longer serves its Merkle path, so membership cannot be proven.',
+  WITNESS_UNSATISFIABLE:
+    "The prover cannot satisfy the circuit constraints with this credential. With the delivered P1 v3 circuit this reflects its hard-coded FileShare predicate over the holder's claimed attributes.",
+};
+
 export function PortalPage() {
   const policies = useQuery({ queryKey: ['policies'], queryFn: api.policies });
   const proverH = useProverHealth();
@@ -297,11 +309,11 @@ function ResultPanel({ result }: { result: FlowResult }) {
             </div>
             <div className="mono mt-1 text-xs text-ink-300">{result.error.code}</div>
             <p className="mt-1 text-sm text-ink-300">{result.error.message}</p>
-            {result.error.code === 'WITNESS_UNSATISFIABLE' && (
+            {result.error.stage === 'proving' && (
               <p className="mt-2 text-xs text-ink-400">
-                The prover cannot satisfy the circuit constraints with this credential, so there is
-                nothing for the gateway to verify. With the delivered P1 circuit this reflects its
-                hard-coded FileShare predicate over the holder's claimed attributes.
+                {NO_PROOF_REASON[result.error.code] ??
+                  'The prover cannot satisfy the circuit constraints with this credential, so there is nothing for the gateway to verify.'}{' '}
+                Nothing was sent to the gateway.
               </p>
             )}
           </div>

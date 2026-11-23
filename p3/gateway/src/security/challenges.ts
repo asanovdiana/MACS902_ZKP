@@ -1,12 +1,16 @@
 import type { ResourceId } from '@zkag/shared';
 import type { Clock } from '../utils/clock.js';
-import { randomFieldNonce, randomId } from '../utils/ids.js';
+import { randomId, randomNonce128 } from '../utils/ids.js';
 
 export interface Challenge {
   id: string;
+  /** 128 random bits, canonical decimal (access.public_signals v4: "gateway issues 128 random bits"). */
   nonce: string;
   resource: ResourceId;
   profile: string;
+  /** Unix seconds issued with the challenge; the proof's `now` must equal it (obligation 5). */
+  now: string;
+  /** floor(now / EPOCH_SECONDS). */
   epoch: string;
   createdAt: number;
   expiresAt: number;
@@ -22,14 +26,15 @@ export type ConsumeResult =
     };
 
 /**
- * One-time challenges. State lives in process memory: this gateway is a SINGLE-INSTANCE
- * deployment. `consume` is synchronous, so the
- * check-and-mark transition is atomic with respect to the Node.js event loop: two
- * concurrent submissions for the same challenge can never both observe state "issued".
- * Consumed challenges are retained until expiry + grace so replays are reported as such.
+ * One-time challenges, addressable by ID (P3 API) or by nonce (team client `/access`). State lives in
+ * process memory: this gateway is a SINGLE-INSTANCE deployment. `consume` is synchronous, so the
+ * check-and-mark transition is atomic with respect to the Node.js event loop: two concurrent
+ * submissions for the same challenge can never both observe state "issued". Consumed challenges are
+ * retained until expiry + one TTL so replays are reported as replays.
  */
 export class ChallengeStore {
   private readonly items = new Map<string, Challenge>();
+  private readonly byNonce = new Map<string, string>();
 
   constructor(
     private readonly clock: Clock,
@@ -46,17 +51,21 @@ export class ChallengeStore {
     this.sweep();
     if (this.items.size >= this.maxOutstanding) return null;
     const now = this.clock.now();
+    const nowSeconds = Math.floor(now / 1000);
     const challenge: Challenge = {
       id: randomId(18),
-      nonce: randomFieldNonce(),
+      nonce: randomNonce128(),
       resource,
       profile,
-      epoch: this.epochAt(now),
+      now: String(nowSeconds),
+      // Derived from the same second as `now` so that epoch === floor(now / EPOCH) always holds.
+      epoch: this.epochAt(nowSeconds * 1000),
       createdAt: now,
       expiresAt: now + this.ttlMs,
       state: 'issued',
     };
     this.items.set(challenge.id, challenge);
+    this.byNonce.set(challenge.nonce, challenge.id);
     return challenge;
   }
 
@@ -72,17 +81,28 @@ export class ChallengeStore {
     return { ok: true, challenge };
   }
 
+  /** Resolve the challenge ID for a nonce (team client `/access`), without consuming. */
+  idForNonce(nonce: string): string | undefined {
+    return this.byNonce.get(nonce);
+  }
+
   peek(id: string): Challenge | undefined {
     return this.items.get(id);
   }
 
   sweep() {
     const cutoff = this.clock.now() - this.ttlMs; // keep consumed/expired ones for one extra TTL
-    for (const [id, c] of this.items) if (c.expiresAt < cutoff) this.items.delete(id);
+    for (const [id, c] of this.items) {
+      if (c.expiresAt < cutoff) {
+        this.items.delete(id);
+        this.byNonce.delete(c.nonce);
+      }
+    }
   }
 
   clear() {
     this.items.clear();
+    this.byNonce.clear();
   }
 
   get size() {

@@ -133,7 +133,10 @@ export function AdminPage() {
                   .map((l) => (
                     <div key={l.index} className="flex items-center gap-3 py-2.5 text-sm">
                       <span className="mono w-6 text-ink-400">#{l.index}</span>
-                      <span className="mono flex-1">{l.credentialId}</span>
+                      <span className="flex-1">
+                        {l.label && <span className="mr-2 font-medium">{l.label}</span>}
+                        <span className="mono text-ink-400">{l.credentialId}</span>
+                      </span>
                       <Badge tone={l.status === 'active' ? 'ok' : 'neutral'}>{l.status}</Badge>
                       <Button
                         variant="danger"
@@ -232,87 +235,125 @@ export function AdminPage() {
 }
 
 function TreeDiagram({ data }: { data: RegistryView }) {
-  const leaves = data.leaves?.leaves ?? [];
-  const depth = Math.max(1, Math.round(Math.log2(leaves.length)));
-  const W = 560;
+  const issued = data.leaves?.leaves ?? [];
+  const fullDepth = data.leaves?.treeDepth ?? data.current.treeDepth ?? 2;
+  // Draw only the left-most subtree that holds every issued leaf (a depth-16 tree has 65,536 slots).
+  const shown = Math.max(4, 2 ** Math.ceil(Math.log2(Math.max(1, issued.length))));
+  const leaves = Array.from(
+    { length: shown },
+    (_, i) =>
+      issued.find((l) => l.index === i) ?? {
+        index: i,
+        credentialId: '',
+        label: null,
+        status: 'empty',
+        leaf: '0',
+      },
+  );
+  const depth = Math.round(Math.log2(shown));
+  const W = Math.max(560, shown * 116);
   const H = 70 + depth * 70;
   const levelY = (lvl: number) => 30 + (depth - lvl) * 70;
   const nodes: Array<{ x: number; y: number; lvl: number; i: number }> = [];
   for (let lvl = 0; lvl <= depth; lvl++) {
-    const count = leaves.length >> lvl;
+    const count = shown >> lvl;
     for (let i = 0; i < count; i++)
       nodes.push({ x: ((i + 0.5) * W) / count, y: levelY(lvl), lvl, i });
   }
   const at = (lvl: number, i: number) => nodes.find((n) => n.lvl === lvl && n.i === i)!;
+  const truncated = fullDepth > depth;
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      role="img"
-      aria-label="Merkle tree of credential leaves"
-    >
-      {nodes
-        .filter((n) => n.lvl > 0)
-        .flatMap((n) =>
-          [at(n.lvl - 1, n.i * 2), at(n.lvl - 1, n.i * 2 + 1)].map((c) => (
-            <line
-              key={`${n.lvl}-${n.i}-${c.i}`}
-              x1={n.x}
-              y1={n.y}
-              x2={c.x}
-              y2={c.y}
-              stroke="#25324f"
-              strokeWidth={1.5}
-            />
-          )),
-        )}
-      {nodes.map((n) => {
-        const leaf = n.lvl === 0 ? leaves[n.i] : undefined;
-        const revoked = leaf?.status === 'revoked';
-        const empty = leaf?.status === 'empty';
-        const isRoot = n.lvl === depth;
-        return (
-          <g key={`${n.lvl}-${n.i}`}>
-            <rect
-              x={n.x - 52}
-              y={n.y - 16}
-              width={104}
-              height={32}
-              rx={8}
-              fill={isRoot ? 'rgba(34,211,238,.12)' : revoked ? '#121826' : '#111a2d'}
-              stroke={isRoot ? '#22d3ee' : revoked ? '#3a4a6b' : empty ? '#25324f' : '#34d399'}
-              strokeDasharray={revoked || empty ? '4 3' : undefined}
-            />
-            <text
-              x={n.x}
-              y={n.y - 1}
-              textAnchor="middle"
-              fontSize={10}
-              fill={revoked || empty ? '#6b7a99' : '#e6ebf5'}
-              fontFamily="JetBrains Mono, monospace"
-            >
-              {isRoot ? 'ROOT' : leaf ? (leaf.credentialId ?? 'empty') : `node ${n.lvl}.${n.i}`}
-            </text>
-            <text
-              x={n.x}
-              y={n.y + 11}
-              textAnchor="middle"
-              fontSize={8.5}
-              fill="#6b7a99"
-              fontFamily="JetBrains Mono, monospace"
-            >
-              {isRoot
-                ? short(data.current.root, 5)
-                : leaf
-                  ? revoked
-                    ? 'revoked → 0'
-                    : short(leaf.leaf, 5)
-                  : 'poseidon'}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+    <>
+      <div className="overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          width={W > 560 ? W : undefined}
+          className={W > 560 ? '' : 'w-full'}
+          role="img"
+          aria-label="Merkle tree of credential leaves"
+        >
+          {nodes
+            .filter((n) => n.lvl > 0)
+            .flatMap((n) =>
+              [at(n.lvl - 1, n.i * 2), at(n.lvl - 1, n.i * 2 + 1)].map((c) => (
+                <line
+                  key={`${n.lvl}-${n.i}-${c.i}`}
+                  x1={n.x}
+                  y1={n.y}
+                  x2={c.x}
+                  y2={c.y}
+                  stroke="#25324f"
+                  strokeWidth={1.5}
+                />
+              )),
+            )}
+          {nodes.map((n) => {
+            const leaf = n.lvl === 0 ? leaves[n.i] : undefined;
+            const revoked = leaf?.status === 'revoked';
+            const empty = leaf?.status === 'empty';
+            const isTop = n.lvl === depth;
+            const full = leaf ? (leaf.label ?? (leaf.credentialId || 'empty')) : '';
+            const name = full.length > 14 ? `${full.slice(0, 13)}…` : full;
+            return (
+              <g key={`${n.lvl}-${n.i}`}>
+                <rect
+                  x={n.x - 52}
+                  y={n.y - 16}
+                  width={104}
+                  height={32}
+                  rx={8}
+                  fill={isTop ? 'rgba(34,211,238,.12)' : revoked ? '#121826' : '#111a2d'}
+                  stroke={isTop ? '#22d3ee' : revoked ? '#3a4a6b' : empty ? '#25324f' : '#34d399'}
+                  strokeDasharray={revoked || empty ? '4 3' : undefined}
+                />
+                <text
+                  x={n.x}
+                  y={n.y - 1}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill={revoked || empty ? '#6b7a99' : '#e6ebf5'}
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {isTop
+                    ? truncated
+                      ? `subtree → root`
+                      : 'ROOT'
+                    : leaf
+                      ? name
+                      : `node ${n.lvl}.${n.i}`}
+                </text>
+                <text
+                  x={n.x}
+                  y={n.y + 11}
+                  textAnchor="middle"
+                  fontSize={8.5}
+                  fill="#6b7a99"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {isTop
+                    ? truncated
+                      ? `+${fullDepth - depth} levels`
+                      : short(data.current.root, 5)
+                    : leaf
+                      ? revoked
+                        ? 'revoked → 0'
+                        : empty
+                          ? 'empty'
+                          : short(leaf.leaf, 5)
+                      : 'poseidon'}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      {truncated && (
+        <p className="mt-1 text-xs text-ink-400">
+          Showing the {shown} left-most leaves of a depth-{fullDepth} tree (
+          {(2 ** fullDepth).toLocaleString()} slots); the rest are empty.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -348,14 +389,18 @@ function StatusLookup() {
   );
 }
 
+const ROLES = ['engineer', 'admin', 'contractor', 'finance'];
+const DEPTS = ['engineering', 'it', 'operations', 'finance'];
+
 function IssueForm() {
   const [form, setForm] = useState({
-    role: 'engineer',
-    dept: 'engineering',
+    employeeId: 'dave',
+    role: 0,
+    dept: 0,
     clearance: 2,
-    deviceCompliant: true,
+    deviceCompliant: 1,
+    employeeActive: 1,
     expiry: new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10),
-    secretCommitment: '',
   });
   const [result, setResult] = useState<{ status: number; data: Record<string, unknown> } | null>(
     null,
@@ -365,11 +410,11 @@ function IssueForm() {
     e.preventDefault();
     setBusy(true);
     try {
+      const { employeeId, expiry, ...attrs } = form;
       setResult(
         await api.issue({
-          ...form,
-          clearance: Number(form.clearance),
-          expiry: new Date(form.expiry).toISOString(),
+          employeeId,
+          attributes: { ...attrs, expiry: Math.floor(new Date(expiry).getTime() / 1000) },
         }),
       );
     } finally {
@@ -377,35 +422,42 @@ function IssueForm() {
     }
   };
   const err = result?.data?.error as { code?: string; message?: string } | undefined;
+  const num = (k: keyof typeof form) => (e: { target: { value: string } }) =>
+    setForm({ ...form, [k]: Number(e.target.value) });
   return (
     <Card
       title={
         <span className="flex items-center gap-2">
-          <Stamp className="h-4 w-4 text-accent" /> Issue credential (via P2)
+          <Stamp className="h-4 w-4 text-accent" /> Enrol an employee (via P2 issuer)
         </span>
       }
-      subtitle="The holder generates the secret locally; only Poseidon(secret) is sent to the issuer."
+      subtitle="The admin assigns attributes; the employee redeems a one-time code with a commitment generated on their own machine."
     >
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-        <Field label="Role">
-          <select
+        <Field label="Employee ID">
+          <input
             className={inputCls}
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          >
-            {['engineer', 'admin', 'contractor', 'finance'].map((r) => (
-              <option key={r}>{r}</option>
+            value={form.employeeId}
+            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+            required
+            pattern="[A-Za-z0-9._@-]{1,64}"
+          />
+        </Field>
+        <Field label="Role">
+          <select className={inputCls} value={form.role} onChange={num('role')}>
+            {ROLES.map((r, i) => (
+              <option key={r} value={i}>
+                {r}
+              </option>
             ))}
           </select>
         </Field>
         <Field label="Department">
-          <select
-            className={inputCls}
-            value={form.dept}
-            onChange={(e) => setForm({ ...form, dept: e.target.value })}
-          >
-            {['engineering', 'operations', 'finance', 'sales'].map((r) => (
-              <option key={r}>{r}</option>
+          <select className={inputCls} value={form.dept} onChange={num('dept')}>
+            {DEPTS.map((r, i) => (
+              <option key={r} value={i}>
+                {r}
+              </option>
             ))}
           </select>
         </Field>
@@ -416,7 +468,7 @@ function IssueForm() {
             max={3}
             className={inputCls}
             value={form.clearance}
-            onChange={(e) => setForm({ ...form, clearance: Number(e.target.value) })}
+            onChange={num('clearance')}
           />
         </Field>
         <Field label="Expiry">
@@ -427,27 +479,28 @@ function IssueForm() {
             onChange={(e) => setForm({ ...form, expiry: e.target.value })}
           />
         </Field>
-        <Field label="Secret commitment (decimal field element from holder)">
-          <input
-            className={`${inputCls} mono`}
-            value={form.secretCommitment}
-            onChange={(e) => setForm({ ...form, secretCommitment: e.target.value })}
-            placeholder="Poseidon(user_secret)"
-            required
-            pattern="(0|[1-9][0-9]{0,77})"
-          />
-        </Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-200">
-          <input
-            type="checkbox"
-            className="accent-cyan-400"
-            checked={form.deviceCompliant}
-            onChange={(e) => setForm({ ...form, deviceCompliant: e.target.checked })}
-          />{' '}
-          Device compliant
-        </label>
+        <div className="flex items-end gap-4 pb-2 text-sm text-ink-200">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="accent-cyan-400"
+              checked={form.deviceCompliant === 1}
+              onChange={(e) => setForm({ ...form, deviceCompliant: e.target.checked ? 1 : 0 })}
+            />{' '}
+            Device compliant
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="accent-cyan-400"
+              checked={form.employeeActive === 1}
+              onChange={(e) => setForm({ ...form, employeeActive: e.target.checked ? 1 : 0 })}
+            />{' '}
+            Active
+          </label>
+        </div>
         <Button type="submit" className="sm:col-span-2" loading={busy}>
-          <ShieldCheck className="h-4 w-4" /> Request issuance
+          <ShieldCheck className="h-4 w-4" /> Create enrolment
         </Button>
       </form>
       {result && (
@@ -456,11 +509,19 @@ function IssueForm() {
           role="status"
         >
           {result.status < 300 ? (
-            'Credential issued by P2.'
+            <>
+              One-time enrolment code (shown once):{' '}
+              <span className="mono break-all text-ink-100">{String(result.data.code)}</span>
+              <div className="mt-1 text-xs text-ink-300">
+                The employee redeems it on their own machine:{' '}
+                <span className="mono">zkgate keygen --name {form.employeeId}</span> then{' '}
+                <span className="mono">zkgate request --code …</span>
+              </div>
+            </>
           ) : (
             <>
-              Issuance unavailable (HTTP {result.status}): <span className="mono">{err?.code}</span>{' '}
-              — {err?.message}
+              Enrolment refused (HTTP {result.status}): <span className="mono">{err?.code}</span> —{' '}
+              {err?.message}
             </>
           )}
         </div>

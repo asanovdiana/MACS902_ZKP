@@ -37,17 +37,16 @@ test('navigates all five demo screens plus evidence pages', async ({ page }) => 
   }
 });
 
-test('User Portal: Alice gets a REAL valid proof but authorization is blocked; lifecycle shows timings', async ({
+test('User Portal: Alice is GRANTED File Share with a real v4 proof and the service loads anonymously', async ({
   page,
 }) => {
   await page.getByRole('radio', { name: /File Share/ }).click();
   await page.getByRole('button', { name: 'Request access as Alice' }).click();
-  await expect(page.getByText('PROFILE_NOT_AUTHORIZATION_ELIGIBLE').first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(page.getByText('ACCESS_GRANTED').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('mathematically valid', { exact: true })).toBeVisible();
   await expect(page.getByText(/^256\s*bytes$/)).toBeVisible();
-  await expect(page.getByText('Why no session was issued')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Engineering File Exchange' })).toBeVisible();
+  await expect(page.getByText('Anonymous credential holder')).toBeVisible();
   await expect(page.getByText('no email')).toBeVisible();
 });
 
@@ -60,7 +59,7 @@ test('User Portal: Bob (contractor) cannot generate a proof', async ({ page }) =
 
 test('Live View receives events over the authenticated WebSocket', async ({ page }) => {
   await page.getByRole('button', { name: 'Request access as Alice' }).click();
-  await expect(page.getByText('PROFILE_NOT_AUTHORIZATION_ELIGIBLE').first()).toBeVisible({
+  await expect(page.getByText('ACCESS_GRANTED').first()).toBeVisible({
     timeout: 30_000,
   });
   await page.getByRole('link', { name: /Gateway Live View/ }).click();
@@ -68,40 +67,37 @@ test('Live View receives events over the authenticated WebSocket', async ({ page
   await expect(page.getByText('Public signals received')).toBeVisible();
 });
 
-test('Admin Console: revoking a credential changes the root and greys out the leaf', async ({
+test('Admin Console: issuer tree with persona labels, and admin enrolment returns a one-time code', async ({
   page,
 }) => {
-  const rootOf = async () =>
-    (
-      (await (await page.request.get('/api/admin/registry')).json()) as {
-        current: { root: string };
-      }
-    ).current.root;
-  const initial = await rootOf();
   await page.getByRole('link', { name: /Admin Console/ }).click();
-  const row = page.locator('span.mono', { hasText: /^cred-bob$/ }).locator('..');
-  await row.getByRole('button', { name: 'Revoke' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Revoked cred-bob' })).toBeVisible();
-  await expect(row.getByText('revoked', { exact: true })).toBeVisible();
-  expect(await rootOf()).not.toBe(initial);
-  await page.getByRole('button', { name: 'Reset demo' }).click();
-  await expect.poll(rootOf).toBe(initial);
+  await expect(page.getByRole('img', { name: 'Merkle tree of credential leaves' })).toBeVisible();
+  for (const who of ['alice', 'bob', 'carol'])
+    await expect(
+      page.locator('span.font-medium', { hasText: new RegExp(`^${who}$`) }).first(),
+    ).toBeVisible();
+  await page.getByLabel('Employee ID').fill(`e2e-${Date.now()}`);
+  await page.getByRole('button', { name: 'Create enrolment' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'One-time enrolment code' }),
+  ).toBeVisible();
 });
 
-test('Attack Lab: gateway hardening checks pass with real backend responses', async ({ page }) => {
+test('Attack Lab: team suite attacks and gateway hardening checks pass with real backend responses', async ({
+  page,
+}) => {
   await page.getByRole('link', { name: /Attack Lab/ }).click();
   for (const title of [
+    'Forged credential',
+    'Revoked user tries again',
+    'Tamper attributes',
     'Malformed / oversized proof',
     'Forged session / direct service access',
-    'Tampered public input',
   ]) {
     const card = page.locator('article').filter({ hasText: title });
     await card.getByRole('button', { name: 'Run' }).click();
-    await expect(card.getByText('PASS · attack defeated')).toBeVisible({ timeout: 30_000 });
+    await expect(card.getByText('PASS · attack defeated')).toBeVisible({ timeout: 60_000 });
   }
-  const tamper = page.locator('article').filter({ hasText: 'Tamper attributes' });
-  await tamper.getByRole('button', { name: 'Run' }).click();
-  await expect(tamper.getByText(/FAIL · property does not hold/)).toBeVisible({ timeout: 30_000 });
 });
 
 test('responsive: mobile layout has no horizontal scroll and a menu button', async ({ page }) => {

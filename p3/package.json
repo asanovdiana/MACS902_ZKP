@@ -13,6 +13,7 @@
     "gateway",
     "baseline/sso-gateway",
     "integration/p2-standin",
+    "integration/wallet-prover",
     "bench",
     "ui"
   ],
@@ -28,8 +29,10 @@
     "p1:audit": "npm run audit -w integration/p2-standin",
     "p1:fixtures": "npm run fixtures -w integration/p2-standin",
     "bench": "npm run build -w shared && npm run bench -w bench",
-    "dev": "npm run build -w shared && concurrently -k -n svc,gw,p2,sso,ui -c gray,cyan,magenta,yellow,green \"npm run dev -w services\" \"npm run dev -w gateway\" \"npm run dev -w integration/p2-standin\" \"npm run dev -w baseline/sso-gateway\" \"npm run dev -w ui\"",
-    "check:env": "node scripts/check-env.mjs"
+    "dev": "npm run build -w shared && concurrently -k -n svc,issuer,gw,prover,sso,ui -c gray,blue,cyan,magenta,yellow,green \"npm run dev -w services\" \"ISSUER_PROFILE=v4 ISSUER_ADMIN_TOKEN=dev-registry-admin-token-change-me-0000 ISSUER_KEY_DIR=$PWD/.v4-demo/issuer/keys ISSUER_DATA_DIR=$PWD/.v4-demo/issuer/data ISSUER_LOG_LEVEL=warn node ../issuer/src/main.js\" \"ZK_PROFILE=integrated-access-v4 ALLOW_DEMO_KEYS=true TRUSTED_ISSUER_FILE=.v4-demo/issuer-pin.json npm run dev -w gateway\" \"npm run dev -w integration/wallet-prover\" \"npm run dev -w baseline/sso-gateway\" \"VITE_PROVER_URL=http://127.0.0.1:4700 npm run dev -w ui\"",
+    "check:env": "node scripts/check-env.mjs",
+    "v4:setup": "node scripts/v4-setup.mjs",
+    "dev:v3": "npm run build -w shared && concurrently -k -n svc,gw,p2,sso,ui -c gray,cyan,magenta,yellow,green \"npm run dev -w services\" \"ZK_PROFILE=p1-integrated-v3 npm run dev -w gateway\" \"npm run dev -w integration/p2-standin\" \"npm run dev -w baseline/sso-gateway\" \"VITE_PROVER_URL=http://127.0.0.1:4600 npm run dev -w ui\""
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

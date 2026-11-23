@@ -30,7 +30,7 @@ const HEX128 = /^[0-9a-f]{128}$/;
 const committedManifest = (name) => h.readJson(h.r("circuits", "setup", `${name}.manifest.json`));
 const claimsMultiParty = (m) => Boolean(m.phase2) && typeof m.phase2.contributions === "number" && m.phase2.contributions >= 2;
 const F906_SUPERSEDED = SETUP_NAMES.some((n) => claimsMultiParty(committedManifest(n)))
-  ? "superseded by F9.12: a multi-party phase 2 is committed (G2-S1-SAFETY-022)"
+  ? "superseded by F9.12 (G2-S1-SAFETY-022), itself superseded by F9.13: a multi-party phase 2 is committed"
   : false;
 
 /**
@@ -137,6 +137,44 @@ function fixtureTextViolations(text, m) {
   }
   return v;
 }
+
+/**
+ * F9.13 tightening: a manifest carries EXACTLY ONE phase-2 limitation line, and it agrees with
+ * `phase2.contributions` / `phase2.contributors` (and with `phase2.limitation` when present).
+ * A multi-party key with an extra contradictory "multi-party phase 2 (1 contributors: x)" line, or a
+ * line naming another count or other people, is refused. Returns [] when consistent.
+ */
+function phase2LineViolations(m) {
+  const v = [];
+  const lim = Array.isArray(m.limitations) ? m.limitations.filter((l) => typeof l === "string") : [];
+  const p2 = m.phase2 && typeof m.phase2 === "object" ? m.phase2 : {};
+  const n = p2.contributions;
+  const lines = lim.filter((l) => /(single|multi)-party phase 2/.test(l));
+  if (lines.length !== 1) v.push(`${lines.length} phase-2 limitation lines (exactly one required)`);
+  if (typeof n !== "number" || !Number.isInteger(n) || n < 1) return v; // provenanceViolations reports it
+  const cs = Array.isArray(p2.contributors) ? p2.contributors : null;
+  for (const l of lines) {
+    if (/single-party phase 2/.test(l) && /multi-party phase 2/.test(l)) v.push("one phase-2 line says both single- and multi-party");
+    if (/multi-party phase 2/.test(l)) {
+      const mm = /multi-party phase 2 \((\d+) contributors?(?::\s*([^)]*))?\)/.exec(l);
+      if (!mm) {
+        v.push("multi-party line without a contributor count");
+        continue;
+      }
+      const k = Number(mm[1]);
+      if (n < 2) v.push(`multi-party line on a key with ${n} contribution(s)`);
+      if (k !== n) v.push(`multi-party line names ${k} contributors, phase2.contributions is ${n}`);
+      if (!cs || cs.length !== k) v.push(`multi-party line names ${k} contributors, phase2.contributors lists ${cs ? cs.length : "none"}`);
+      else if (mm[2] !== undefined && mm[2] !== cs.map((c) => c && c.participant).join(", ")) v.push("multi-party line names other contributors than phase2.contributors");
+    } else if (n >= 2) {
+      v.push(`single-party line on a key with ${n} contributions`);
+    }
+  }
+  if (p2.limitation !== undefined && (lines.length !== 1 || p2.limitation !== lines[0])) v.push("phase2.limitation differs from the phase-2 limitation line");
+  return v;
+}
+/** F9.13: provenanceViolations plus the one-consistent-phase-2-line rule. */
+const strictViolations = (m, read) => [...provenanceViolations(m, read), ...phase2LineViolations(m)];
 
 const readTreeFile = (rel) => {
   if (typeof rel !== "string" || rel.startsWith("..") || path.isAbsolute(rel)) return null;
@@ -396,7 +434,11 @@ describe("floor 9: no plaintext credentials or issuer private keys in the tree",
 
   // --- G2-S1-SAFETY-022: ceremony-ready status rule (supersedes F9.06 once a multi-party key is committed) ---
 
-  test("F9.12 a key's status never outruns its provenance: single-party => DEV-ONLY, full multi-party evidence => DEMO-ONLY (never production), fixtures say the same", () => {
+  // F9.12 is superseded by F9.13 (ID, title and body unchanged; only the todo option added): its
+  // part-3 single-party negatives mutate the committed v4 manifest, which is multi-party since the
+  // 2026-11-23 ceremony, so three of them no longer violate anything. F9.13 asserts everything
+  // F9.12 does, on bases that keep their kind, and adds the one-phase-2-line rule.
+  test("F9.12 a key's status never outruns its provenance: single-party => DEV-ONLY, full multi-party evidence => DEMO-ONLY (never production), fixtures say the same", { todo: "superseded by F9.13: its single-party negatives mutated the v4 manifest, which is multi-party since the 2026-11-23 ceremony" }, () => {
     const crypto = require("crypto");
     const clone = (o) => JSON.parse(JSON.stringify(o));
     // 1. the committed manifests and fixtures
@@ -487,5 +529,167 @@ describe("floor 9: no plaintext credentials or issuer private keys in the tree",
     fxBad("no TEST-ONLY marker", demoText.replace("TEST-ONLY", "fixtures"), demo.m);
     fxBad("single-party key text without the limitation", "TEST-ONLY fixtures under a DEV-ONLY key. Never use outside tests.", v4);
     fxBad("no use restriction", demoText.replace(" Never use outside tests.", ""), demo.m);
+  });
+
+  // --- F9.13: supersedes F9.12 (multi-party v4 since the 2026-11-23 ceremony) ---
+  // Same rule as F9.12, but every negative is built from a base that keeps its kind whatever is
+  // committed: single-party negatives from a committed single-party manifest (v3 today) AND from a
+  // synthetic single-party build; multi-party negatives from every committed multi-party manifest
+  // (v4 today) AND from a synthetic multi-party build. Tightened: exactly one phase-2 limitation
+  // line, consistent with phase2.contributions / contributors / limitation (phase2LineViolations).
+
+  test("F9.13 a key's status never outruns its provenance, on single- and multi-party bases alike; exactly one phase-2 limitation line, consistent with its contributors", () => {
+    const crypto = require("crypto");
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const mut = (src, f) => {
+      const m = clone(src);
+      f(m);
+      return m;
+    };
+    // 1. the committed manifests and fixtures
+    const committed = SETUP_NAMES.map((name) => ({ name, m: committedManifest(name) }));
+    for (const { name, m } of committed) {
+      assert.deepEqual(strictViolations(m, readTreeFile), [], name);
+      if (claimsMultiParty(m)) assert.equal(typeof readTreeFile(m.phase2.transcript), "string", `${name}: transcript not in the tree`);
+    }
+    const v4 = committedManifest("integrated_access_v4");
+    assert.deepEqual(fixtureTextViolations(h.fixtureIndex().TEST_ONLY, v4), [], "fixtures TEST_ONLY vs the v4 key");
+
+    // 2. what `ceremony.sh finalize` writes (buildManifest), on synthetic transcripts, from a
+    //    single-party base and from a multi-party base (idempotent: no stale phase-2 line survives)
+    const { buildManifest } = require(h.r("circuits", "scripts", "ceremony-transcript.js"));
+    const H = (s) => crypto.createHash("sha512").update(s).digest("hex");
+    const singleCommitted = committed.filter((c) => !claimsMultiParty(c.m));
+    const multiCommitted = committed.filter((c) => claimsMultiParty(c.m));
+    assert.ok(singleCommitted.length + multiCommitted.length === SETUP_NAMES.length);
+    const REL = "circuits/ceremony/integrated_access_v4/transcript.json";
+    const mkT = (base, n, pub, source = "pse-ppot-0080", tag = "") => ({
+      format: "zk-access-gate.ceremony-transcript v1",
+      name: "integrated_access_v4",
+      ptau: { ...clone(base.ptau), source },
+      contributions: Array.from({ length: n }, (_, i) => ({ order: i + 1, participant: `Person ${i + 1}${tag}`, contribution_hash: H(`c${i}${tag}`) })),
+      beacon: { name: "final beacon", hash: "cd".repeat(32), iterations_exp: 10, source: "drand mainnet round R", public: pub, contribution_hash: H(`beacon${tag}`) },
+    });
+    const build = (base, t, patchBase) => {
+      const text = JSON.stringify(t, null, 2) + "\n";
+      const sha = crypto.createHash("sha256").update(text).digest("hex");
+      const b = clone(base);
+      if (patchBase) patchBase(b);
+      return { m: buildManifest(b, t, REL, sha), read: (rel) => (rel === REL ? text : null) };
+    };
+    const ok = (label, x) => assert.deepEqual(strictViolations(x.m, x.read), [], label);
+    const bases = [...committed.map((c) => ({ label: `committed ${c.name}`, m: c.m }))];
+    const builds = {};
+    for (const { label, m } of bases) {
+      const demo = build(m, mkT(m, 3, true));
+      assert.equal(demo.m.status, "DEMO-ONLY", label);
+      ok(`${label}: 3 contributors, public beacon`, demo);
+      const two = build(m, mkT(m, 2, true));
+      assert.equal(two.m.status, "DEMO-ONLY", label);
+      ok(`${label}: 2 contributors`, two);
+      const devBeacon = build(m, mkT(m, 3, false));
+      assert.equal(devBeacon.m.status, "DEV-ONLY", label);
+      ok(`${label}: local beacon -> DEV-ONLY`, devBeacon);
+      const devP1 = build(m, mkT(m, 3, true, "dev"), (b) => { b.ptau = { ...b.ptau, source: "dev" }; });
+      assert.equal(devP1.m.status, "DEV-ONLY", label);
+      ok(`${label}: dev phase 1 -> DEV-ONLY`, devP1);
+      const one = build(m, mkT(m, 1, true));
+      assert.equal(one.m.status, "DEV-ONLY", label);
+      ok(`${label}: 1 contribution -> DEV-ONLY`, one);
+      // re-finalising on top of a multi-party result (2 -> 3 people, then 3 -> 1) leaves one line
+      const again = build(demo.m, mkT(m, 2, true, "pse-ppot-0080", "b"));
+      ok(`${label}: rebuilt 3 -> 2 contributors`, again);
+      const back = build(demo.m, mkT(m, 1, true, "pse-ppot-0080", "c"));
+      assert.equal(back.m.status, "DEV-ONLY");
+      ok(`${label}: rebuilt 3 -> 1 contribution`, back);
+      builds[label] = { demo, two, devBeacon, devP1, one };
+    }
+    const S = builds[bases[0].label];
+    const demoText = "TEST-ONLY fixtures. Proofs are valid under a DEMO-ONLY key (phase 1 PSE ppot 0080; multi-party phase 2, 3 contributors). Never use outside tests.";
+    const singleText = "TEST-ONLY fixtures. Proofs are valid under a DEV-ONLY key (phase 1 PSE ppot 0080; single-party phase 2, so whoever ran setup could forge proofs). Never use outside tests.";
+    assert.deepEqual(fixtureTextViolations(demoText, S.demo.m), []);
+    assert.deepEqual(fixtureTextViolations(singleText, S.one.m), []);
+
+    // 3. mismatched combinations fail
+    const bad = (label, m, read) => assert.notDeepEqual(strictViolations(m, read), [], `accepted: ${label}`);
+    // 3a. single-party negatives: committed single-party keys (stay single-party) + synthetic one
+    const singles = [
+      ...singleCommitted.map((c) => ({ label: `committed ${c.name}`, m: c.m, read: readTreeFile })),
+      ...Object.entries(builds).map(([l, b]) => ({ label: `synthetic 1-contribution (${l})`, m: b.one.m, read: b.one.read })),
+    ];
+    assert.ok(singles.length >= 2);
+    for (const { label, m, read } of singles) {
+      assert.ok(!claimsMultiParty(m), `${label} must be single-party`);
+      bad(`${label} relabelled DEMO-ONLY`, mut(m, (x) => { x.status = "DEMO-ONLY"; }), read);
+      bad(`${label} without its single-party limitation`, mut(m, (x) => { x.limitations = x.limitations.filter((l) => !/single-party/.test(l)); }), read);
+      bad(`${label} also claiming multi-party`, mut(m, (x) => { x.limitations.push("multi-party phase 2 (1 contributors: x): could forge proofs"); }), read);
+      bad(`${label} with its line replaced by a multi-party one`, mut(m, (x) => { x.limitations = x.limitations.map((l) => (/single-party/.test(l) ? "multi-party phase 2 (1 contributors: x): could forge proofs" : l)); }), read);
+      bad(`${label} inflated to 2 contributions`, mut(m, (x) => { x.phase2.contributions = 2; x.status = "DEMO-ONLY"; }), read);
+      bad(`${label} with 2 contributions and DEV-ONLY (line still single-party)`, mut(m, (x) => { x.phase2.contributions = 2; }), read);
+      bad(`${label} with the single-party line twice`, mut(m, (x) => { x.limitations.push(x.limitations.find((l) => /single-party/.test(l))); }), read);
+      bad(`${label} status_detail claiming multi-party`, mut(m, (x) => { x.status = "DEMO-ONLY"; x.status_detail = "DEMO-ONLY (multi-party phase 2): not for production"; }), read);
+    }
+    // 3b. multi-party negatives: committed multi-party keys + every synthetic multi-party build
+    const multis = [
+      ...multiCommitted.map((c) => ({ label: `committed ${c.name}`, m: c.m, read: readTreeFile })),
+      ...Object.entries(builds).flatMap(([l, b]) => [
+        { label: `synthetic 3 (${l})`, m: b.demo.m, read: b.demo.read },
+        { label: `synthetic 2 (${l})`, m: b.two.m, read: b.two.read },
+      ]),
+    ];
+    for (const { label, m, read } of multis) {
+      const n = m.phase2.contributions;
+      assert.ok(claimsMultiParty(m) && m.status === "DEMO-ONLY", `${label} must be a DEMO-ONLY multi-party key`);
+      bad(`${label} with an extra 1-contributor line`, mut(m, (x) => { x.limitations.push("multi-party phase 2 (1 contributors: x): could forge proofs"); }), read);
+      bad(`${label} with its line duplicated`, mut(m, (x) => { x.limitations.push(x.limitations.find((l) => /multi-party/.test(l))); }), read);
+      bad(`${label} with contributions set to 1`, mut(m, (x) => { x.phase2.contributions = 1; }), read);
+      bad(`${label} with contributions set to 1 and DEV-ONLY`, mut(m, (x) => { x.phase2.contributions = 1; x.status = "DEV-ONLY"; }), read);
+      bad(`${label} with contributions != contributors`, mut(m, (x) => { x.phase2.contributions = n + 1; }), read);
+      bad(`${label} with a line naming another count`, mut(m, (x) => { x.limitations = x.limitations.map((l) => l.replace(/multi-party phase 2 \(\d+/, `multi-party phase 2 (${n + 1}`)); }), read);
+      bad(`${label} with a line naming other people`, mut(m, (x) => { x.limitations = x.limitations.map((l) => l.replace(/contributors: [^,)]*/, "contributors: Mallory")); }), read);
+      bad(`${label} with phase2.limitation contradicting the list`, mut(m, (x) => { x.phase2.limitation = "multi-party phase 2 (1 contributors: x): could forge proofs"; }), read);
+      bad(`${label} relabelled DEV-ONLY`, mut(m, (x) => { x.status = "DEV-ONLY"; }), read);
+      bad(`${label} relabelled PRODUCTION`, mut(m, (x) => { x.status = "PRODUCTION"; }), read);
+      bad(`${label} without the multi-party limitation`, mut(m, (x) => { x.limitations = x.limitations.filter((l) => !/multi-party/.test(l)); }), read);
+      bad(`${label} also listing the single-party limitation`, mut(m, (x) => { x.limitations.push(singles[0].m.limitations.find((l) => /single-party/.test(l))); }), read);
+      bad(`${label} status_detail without 'not for production'`, mut(m, (x) => { x.status_detail = "DEMO-ONLY (multi-party phase 2)"; }), read);
+      bad(`${label} contributions as an array`, mut(m, (x) => { x.phase2.contributions = x.phase2.contributors; }), read);
+      bad(`${label} contributions missing`, mut(m, (x) => { delete x.phase2.contributions; }), read);
+      bad(`${label} no transcript hash`, mut(m, (x) => { delete x.phase2.transcript_sha256; }), read);
+      bad(`${label} transcript hash of another file`, mut(m, (x) => { x.phase2.transcript_sha256 = "0".repeat(64); }), read);
+      bad(`${label} transcript not in the tree`, m, () => null);
+      bad(`${label} no contributors`, mut(m, (x) => { delete x.phase2.contributors; }), read);
+      bad(`${label} contributors shorter than contributions`, mut(m, (x) => { x.phase2.contributors.pop(); }), read);
+      bad(`${label} contributions inflated past the transcript`, mut(m, (x) => { x.phase2.contributions = n + 1; x.phase2.contributors.push({ order: n + 1, participant: "Ghost", hash: H("g") }); }), read);
+      bad(`${label} contributor renamed vs the transcript`, mut(m, (x) => { x.phase2.contributors[1].participant = "Mallory"; }), read);
+      bad(`${label} contributor with an empty name`, mut(m, (x) => { x.phase2.contributors[0].participant = " "; }), read);
+      bad(`${label} contributor hashes repeated`, mut(m, (x) => { x.phase2.contributors[1].hash = x.phase2.contributors[0].hash; }), read);
+      bad(`${label} beacon hash differs from the transcript`, mut(m, (x) => { x.phase2.beacon_hash = "ab".repeat(32); }), read);
+      bad(`${label} beacon not public`, mut(m, (x) => { x.phase2.beacon_public = false; }), read);
+      bad(`${label} no beacon contribution hash`, mut(m, (x) => { delete x.phase2.beacon_contribution_hash; }), read);
+      bad(`${label} phase 1 differs from the transcript`, mut(m, (x) => { x.ptau.blake2b = "0".repeat(128); }), read);
+      bad(`${label} phase 1 not public`, mut(m, (x) => { x.ptau.source = "dev"; }), read);
+    }
+    // 3c. DEV-ONLY multi-contribution keys (local beacon / dev phase 1)
+    for (const [l, b] of Object.entries(builds)) {
+      bad(`local beacon labelled DEMO-ONLY (${l})`, mut(b.devBeacon.m, (x) => { x.status = "DEMO-ONLY"; }), b.devBeacon.read);
+      bad(`dev phase 1 labelled DEMO-ONLY (${l})`, mut(b.devP1.m, (x) => { x.status = "DEMO-ONLY"; }), b.devP1.read);
+      bad(`beacon_public flipped without a public beacon in the transcript (${l})`, mut(b.devBeacon.m, (x) => { x.status = "DEMO-ONLY"; x.phase2.beacon_public = true; }), b.devBeacon.read);
+      bad(`local beacon DEV-ONLY without the beacon limitation (${l})`, mut(b.devBeacon.m, (x) => { x.limitations = x.limitations.filter((y) => !/beacon is local/.test(y)); }), b.devBeacon.read);
+      bad(`local beacon DEV-ONLY with an extra 1-contributor line (${l})`, mut(b.devBeacon.m, (x) => { x.limitations.push("multi-party phase 2 (1 contributors: x): could forge proofs"); }), b.devBeacon.read);
+    }
+    // 3d. the fixtures' TEST_ONLY text must match the kind of key it is proved under
+    const fxBad = (label, text, m) => assert.notDeepEqual(fixtureTextViolations(text, m), [], `accepted fixtures text: ${label}`);
+    const multiKey = multiCommitted.length ? multiCommitted[0].m : S.demo.m;
+    const singleKey = singleCommitted.length ? singleCommitted[0].m : S.one.m;
+    fxBad("single-party text under a multi-party key", singleText, multiKey);
+    fxBad("multi-party text under a single-party key", demoText, singleKey);
+    fxBad("the committed fixtures text under the other kind of key", h.fixtureIndex().TEST_ONLY, claimsMultiParty(v4) ? singleKey : multiKey);
+    fxBad("DEMO-ONLY text without multi-party", "TEST-ONLY fixtures, DEMO-ONLY key. Never use outside tests.", multiKey);
+    fxBad("multi-party text that also says single-party", `${demoText} Formerly single-party.`, multiKey);
+    fxBad("single-party text that also claims multi-party", `${singleText} Now a multi-party phase 2.`, singleKey);
+    fxBad("single-party key text without the limitation", "TEST-ONLY fixtures under a DEV-ONLY key. Never use outside tests.", singleKey);
+    fxBad("no TEST-ONLY marker", demoText.replace("TEST-ONLY", "fixtures"), multiKey);
+    fxBad("no use restriction", demoText.replace(" Never use outside tests.", ""), multiKey);
   });
 });

@@ -767,6 +767,15 @@
       ],
       "title": "a key's status never outruns its provenance: single-party => DEV-ONLY, full multi-party evidence => DEMO-ONLY (never production), fixtures say the same",
       "added": "G2-S1-SAFETY-022"
+    },
+    {
+      "id": "F9.13",
+      "file": "floor09-no-secrets-in-tree.test.js",
+      "floors": [
+        9
+      ],
+      "title": "a key's status never outruns its provenance, on single- and multi-party bases alike; exactly one phase-2 limitation line, consistent with its contributors",
+      "added": "G2-S1-FINAL-001"
     }
   ]
 }

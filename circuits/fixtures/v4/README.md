@@ -1,16 +1,19 @@
 # v4 Groth16 fixtures (TEST-ONLY)
 
 Real proofs of `circuits/integrated_access_v4.circom` (depth 16) under the committed
-**DEV-ONLY** (DEMO-ONLY) key `circuits/setup/integrated_access_v4.verification_key.json` (phase 1
-PSE Perpetual Powers of Tau 0080; single-party phase 2, so whoever ran setup could forge proofs;
-`circuits/setup/README.md`). Re-keyed in G2-S1-CIRC-040a, which regenerated every proof here. For `gateway` (verifier + obligations 1-8 of
+**DEMO-ONLY** key `circuits/setup/integrated_access_v4.verification_key.json` (phase 1 PSE
+Perpetual Powers of Tau 0080; multi-party phase 2, 3 contributors + the public drand beacon, round
+6667474). The three contributions were **simulated** by separate agents on one machine under one
+operator, so the multi-party trust guarantee does **not** hold: not for production
+(`docs/ceremony/v4-ceremony-log.md`, `circuits/setup/README.md`). Re-keyed in G2-S1-CIRC-040a and
+again in G2-S1-FINAL-001 (ceremony install), which regenerated every proof here. For `gateway` (verifier + obligations 1-8 of
 `access.public_signals v4` in `docs/CONTRACTS.md`), `identity` (client contract), `qa`, `safety`
 and the Attack Lab. Built from the TEST-ONLY vectors `circuits/test/vectors/v4/credentials.json`
 by `npm run prove:fixtures:v4` (`circuits/scripts/access-fixtures.js`). **Never use outside tests.**
 
 | File | What |
 |---|---|
-| `verification_key.json` | copy of `circuits/setup/integrated_access_v4.verification_key.json` (sha256 `ccfe7a47...` = manifest) |
+| `verification_key.json` | copy of `circuits/setup/integrated_access_v4.verification_key.json` (sha256 `c5490c18...` = manifest) |
 | `fixtures.json` | machine-readable index: `context` (pinned issuer, roots before/after revocation, gateway clock, epoch, nonce TTL, resource policies) and per fixture `kind`, `expect`, `persona`, `resource` (what it proves), `presented_to` (what the request asks for), `nonce`, `gateway_state`, `gateway_obligations`, `floor`, `description` |
 | `<name>/proof.json` | snarkjs Groth16 proof (~806 B JSON; 256 B as raw points) |
 | `<name>/public.json` | 12 canonical decimal strings in `access.public_signals v4` order: `nullifier, root, issuerAx, issuerAy, roleMask, deptMask, minClearance, requireDevice, now, nonce, resourceId, epoch` |

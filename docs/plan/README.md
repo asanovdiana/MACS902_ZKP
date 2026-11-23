@@ -9,12 +9,15 @@ Orchestrator updates here.
 
 ## Current milestone
 
-**G0 — Foundations**, P2 lane (identity, on top of the team's P1 v3 circuit). Other lanes belong to
-other team members. Plan of record: [`p2-plan.md`](p2-plan.md).
+**G2 — Integration and hand-in readiness** (all lanes now in this repository: P1 circuits, P2
+identity, P3 gateway + demo under `p3/`). Plan of record for P2: [`p2-plan.md`](p2-plan.md).
 
 ## Next task
 
-P2 G1 work complete; **G1 gate (P2 lane) CONDITIONAL** — see Open gates. Remaining P2 work needs the team or other lanes: G2-S1-CIRC-040 multi-party phase-2 ceremony; P3 gateway; devops CI/Makefile/compose.
+No engineering task open. G1's four conditions are met (see Open gates). What remains is human work
+that no agent can do: the demo video, presentation slides, two rehearsals of the live demo script,
+P1's own sign-off on the v4 second review, and — before any real use — a phase-2 ceremony with the
+team members contributing on their own machines (the one run here was simulated).
 
 ## Active
 
@@ -31,6 +34,13 @@ at its gate, leaving one pointer line here. This file is read **in full** at the
 
 | Task | Owner | Branch | Evidence | Completed |
 |---|---|---|---|---|
+| G2-S1-CIRC-040 | `circuits` (P1/P2/P3 roles played by separate agents) | `task/G2-S1-FINAL-001-submission-readiness` | v4 phase 2 re-keyed: 3 contributions + drand mainnet round 6667474 beacon announced in advance (`docs/ceremony/v4-ceremony-log.md`); each hand-off verified, both final checks OK; manifest `DEMO-ONLY`. **Simulated on one machine**: the multi-party trust guarantee does not hold. Installed in `9d516a9` after fix `7b4248b` (`buildManifest` idempotent); safety F9.12 superseded by F9.13 (`efa64ce`). After install: circuits 907 passing, `artifacts:check` 8/8, vectors up to date, issuer 174 + 1 pending, client 87/87, attacks 27/27, p3 131 pass / 15 skipped, safety 83 pass / 0 fail / 2 todo (agent + Orchestrator). | 2026-11-23 |
+| G2-S1-SAFETY-023 | P3 (mrcyber-ops) | PR #7 | F3.09, F4.06, F5.07, F7.05 todo → real against the real P3 gateway, real issuer, client prover and Groth16 verifier on a shared clock (an equivalent agent-written version was dropped in favour of PR #7); after the ceremony and F9.13 85 tests, 83 pass, 0 fail, 2 todo = F9.06/F9.12 superseded by F9.12/F9.13 (Orchestrator) | 2026-11-23 |
+| G2-S1-DEVOPS-010 | P3 (mrcyber-ops) | PR #7 | root `Makefile` (`make test` runs every suite incl. p3; `test-keycloak`, `e2e`, `demo`) and `.github/workflows/ci.yml` (jobs: make test, live Keycloak, Docker demo + Playwright); all three green on PR #7. `make lint` / `make types` added in PR #8. <!-- CI-RUN --> | 2026-11-23 |
+| G2-S1-GW-030 | P3 (mrcyber-ops) | PR #7 | `replay_expired` 125 s step runs against the real gateway with an injected clock (no skips); live Keycloak PKCE login automated (`p3/baseline/sso-gateway/tests/keycloak.live.test.ts`, `make test-keycloak`). Before PR #7 landed, the Orchestrator also verified a live Keycloak login and Playwright 9/9 against the Docker stack by hand | 2026-11-23 |
+| G2-S1-CIRC-042 | `circuits` | same | second review of v4: APPROVE WITH NITS, no soundness bug (`docs/reviews/v4-circuit-review.md`; P1 sign-off pending). Broken `integrated_access.circom` fragment removed; arrow audit 25 files, 0 violations | 2026-11-23 |
+| G2-S1-ARCH-020 | `architect` | same | report: front page, gateway and demo chapter, privacy comparison (`docs/report/README.md`) | 2026-11-23 |
+| P3 lane (M5–M7) | P3 (mrcyber-ops) | PR #1, PR #3 | gateway, services, demo UI, Keycloak baseline, Docker; p3 checks + 131 tests pass (Orchestrator, PR #3 review) | 2026-11-18 |
 | G2-S1-CIRC-040a | `circuits` | development branch | re-keyed v3+v4 on PSE ppot (prepared from 0080; Hermez no longer downloadable); `artifacts:check` 8/8, setup/fixtures/verifier 111 passing (Orchestrator); `zkey verify` OK (safety) | 2026-11-08 |
 | G1-S1-IDEN-016 | `identity` | development branch | fixed-clock time bomb removed; `test:all` exit 0 (Orchestrator) | 2026-11-08 |
 | G1-S1-CIRC-041 | `circuits` | development branch | circuits README refreshed; 44 links / 0 broken (Orchestrator) | 2026-11-08 |
@@ -74,5 +84,10 @@ client 79/79; attacks 26/26. Safety tier 74 (68 pass, 6 todo) added after.
 ## Open gates
 
 - **G1 (P2 lane): CONDITIONAL**, 2026-11-08 — [`docs/gates/G1/summary.md`](../gates/G1/summary.md).
-  Floors APPROVE ([`floors.md`](../gates/G1/floors.md)). Conditions: G2-S1-DEVOPS-010 (CI, `devops`),
-  G2-S1-CIRC-040 (ceremony, team), P3 gate (gateway obligations), `qa` integration entry point.
+  Floors APPROVE ([`floors.md`](../gates/G1/floors.md)). Conditions, as of 2026-11-23:
+  G2-S1-DEVOPS-010 (CI) — done, see Completed; G2-S1-CIRC-040 (ceremony) — done as a **simulated**
+  ceremony (keys DEMO-ONLY); P3 gateway obligations — implemented, gateway floor tests real and green;
+  `qa` integration entry point — `make test`. A formal `/gate-check` with `safety` sign-off has not been
+  run; that is the step that would close G1.
+- Second-reviewer sign-off on v4 by P1 (the review in `docs/reviews/v4-circuit-review.md` was done by
+  an agent on P1's behalf).

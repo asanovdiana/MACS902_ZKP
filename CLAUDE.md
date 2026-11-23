@@ -66,9 +66,9 @@ Then ground the user in one short message: current milestone, next task ID, any 
 
 | | |
 |---|---|
-| remote | `https://github.com/<team>/<repo>` |
+| remote | `https://github.com/asanovdiana/MACS902_ZKP` |
 | CLI | `gh` |
-| CI | `None` |
+| CI | `.github/workflows/ci.yml` |
 
 - `git push` for code; `gh` for issues, reviews, CI.
 - **Only `gh`.** Do not propose GitLab CI, merge requests, or `glab` for this project. The `pre-bash-guard` hook enforces this.

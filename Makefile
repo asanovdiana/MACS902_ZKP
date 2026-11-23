@@ -10,7 +10,7 @@ P3 := p3
 COMPOSE := docker compose --project-directory $(P3) -f $(P3)/docker-compose.yml
 
 .PHONY: help install check-circom build test test-circuits test-issuer test-client test-attacks \
-	test-safety test-p3 artifacts-check test-keycloak e2e demo demo-local demo-reset demo-down
+	test-safety test-p3 artifacts-check lint types test-keycloak e2e demo demo-local demo-reset demo-down
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -55,6 +55,13 @@ test-p3: ## P3: lint, format, typecheck, unit/integration/security tests (incl. 
 
 artifacts-check: ## Committed circuit artefacts match their manifests
 	npm run artifacts:check
+
+lint: ## ESLint + Prettier check (p3; the only tree with a linter configured)
+	npm run lint --prefix $(P3)
+	npm run format:check --prefix $(P3)
+
+types: ## TypeScript strict type checks (p3)
+	npm run typecheck --prefix $(P3)
 
 test-keycloak: ## Live Keycloak in Docker: real PKCE login, JWKS validation, policies
 	$(COMPOSE) up -d keycloak

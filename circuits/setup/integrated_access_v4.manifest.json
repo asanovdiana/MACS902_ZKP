@@ -1,7 +1,7 @@
 {
   "name": "integrated_access_v4",
-  "status": "DEV-ONLY",
-  "status_detail": "DEMO-ONLY (single-party phase 2): phase 1 is a public ceremony, phase 2 is one local contribution + beacon; not for production",
+  "status": "DEMO-ONLY",
+  "status_detail": "DEMO-ONLY (multi-party phase 2: 3 contributors + public beacon; phase 1 is a public ceremony): no production audit of the ceremony or the circuit; not for production",
   "circuit": "circuits/integrated_access_v4.circom",
   "protocol": "groth16",
   "curve": "bn128",
@@ -26,8 +26,8 @@
   ],
   "r1cs_sha256": "652dae08da61188959fc3eb80039500427350cb79cdf58d498ed0bc6bac2714c",
   "wasm_sha256": "b6651dd53459fe72ae8bc4483385868500d55012a7f5f5418fee8dc8af49770b",
-  "zkey_sha256": "08ea2e979593146d3914fd8fc24fac20edd37005450babc890f8af9f55a8bbb2",
-  "verification_key_sha256": "ccfe7a47bdbc822604e0e8d6303e374dba9ff0f79b21483ab67504428de80c9a",
+  "zkey_sha256": "73f527f371539c34b4507f6f2c395fd9be2f0c2df53fd5af9df2caa8749d85e3",
+  "verification_key_sha256": "c5490c184298b14dd5cc8882a351e68b1e5983d54e10fa5c68acb3c7927ae059",
   "ptau": {
     "source": "pse-ppot-0080",
     "file": "ppot_0080_15.ptau",
@@ -36,15 +36,38 @@
     "provenance": "PSE Perpetual Powers of Tau contribution 0080, prepared for phase 2 with a beacon (Ethereum beacon chain slot 7,325,000 randao_reveal, 31 iterations); downloaded over HTTPS from PSE's official bucket (https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080); header power 15, ceremonyPower 28, sections 12-15 present, 62 contributions in section 7; section 7 contains the published challenge_0080 hash (d9ec6fad4a7a7e3358a0c4bed7171622...) at offset 90185 and challenge_0081 hash (4bf672f3ba1de1bb6105e1ab88359612...) at offset 91706, matching 0080_carter_response/README.md; blake2b-512 pinned on first download 2026-11-08 (PSE publishes no hash for prepared files); full snarkjs powersoftau verify not run (2^28-point initial hash infeasible in the sandbox)"
   },
   "phase2": {
-    "contributions": 1,
-    "entropy": "/dev/urandom (64 bytes) on stdin, mixed by snarkjs with crypto.randomBytes",
+    "contributions": 3,
+    "contributors": [
+      {
+        "order": 1,
+        "participant": "P1 circuits - simulated by agent on same machine",
+        "hash": "b94c7befc2143dac2ee41c774716c8e2d641ba7beac2f23df96b826dfa9070e3b68897b4b96da046b5a0feaec0b631535f74026f6ec2d0a00bf5ea0232f81ccf"
+      },
+      {
+        "order": 2,
+        "participant": "P2 identity - simulated by agent on same machine",
+        "hash": "65c1a72c1dac225ba16a973dabb762d32b32176ab6a2c520875acbccaa0c3f4a6ffbc6d5eddd1368f12e0e1b3e05e6eb91e2566ddacb4b8ad30d25e899a807cc"
+      },
+      {
+        "order": 3,
+        "participant": "P3 gateway - simulated by agent on same machine",
+        "hash": "6ae8dc38bc675c88796e62e566b353dab2911b76fd199726902d8e444981ce29bf6d0ac43e92e8178f5a24997b4ae259314d832c18cf6788dd1ccc9f1938c7c9"
+      }
+    ],
+    "entropy": "per contributor: /dev/urandom (64 bytes) on stdin, mixed by snarkjs with crypto.randomBytes",
     "beacon": true,
-    "beacon_hash": "9d9a6df70bb3c4ee66bd749c8586d1a52d6a3e13afcca9de6ddb47afc8805c17",
-    "beacon_iterations_exp": 10
+    "beacon_hash": "9c26abbf0594815ac1e143bc5c586518f1ddf2264411ebd7af4a8d17d6d022d2",
+    "beacon_iterations_exp": 10,
+    "beacon_source": "drand mainnet round 6667474",
+    "beacon_public": true,
+    "beacon_contribution_hash": "88c9928e5ad06a82d07a01679633a7607aef64eb2ec3128a653e567396ce1e27d9c47c49208f46178c457ca51778884faaf6a2c372338391b1100575c01151d4",
+    "transcript": "circuits/ceremony/integrated_access_v4/transcript.json",
+    "transcript_sha256": "29597f2fdccb714978d655d77e6028d73d149f8208890570aeef9885c8865a88",
+    "limitation": "multi-party phase 2 (3 contributors: P1 circuits - simulated by agent on same machine, P2 identity - simulated by agent on same machine, P3 gateway - simulated by agent on same machine): sound as long as at least one contributor generated their entropy honestly and destroyed it; all of them colluding (or all being compromised) could forge proofs"
   },
   "limitations": [
-    "single-party phase 2 — whoever ran setup could forge proofs; replace via the multi-party ceremony before any real use",
+    "multi-party phase 2 (3 contributors: P1 circuits - simulated by agent on same machine, P2 identity - simulated by agent on same machine, P3 gateway - simulated by agent on same machine): sound as long as at least one contributor generated their entropy honestly and destroyed it; all of them colluding (or all being compromised) could forge proofs",
     "phase 1 blake2b-512 pinned on first download (PSE publishes no hash for prepared files); full snarkjs powersoftau verify not run (see ptau.provenance)"
   ],
-  "date": "2026-11-08T09:53:12.796Z"
+  "date": "2026-11-23T17:35:37.146Z"
 }

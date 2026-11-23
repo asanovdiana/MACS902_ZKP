@@ -143,6 +143,82 @@ describe("ceremony: manifest (buildManifest, no setup)", () => {
     assertFloor9Compatible(m);
   });
 
+  // G2-S1-FINAL-001: buildManifest is idempotent. On a base that is already a ceremony manifest
+  // (e.g. the installed v4 one) no stale phase-2 or beacon line may survive; on the setup.sh
+  // single-party base the result is unchanged.
+  describe("idempotent on a multi-party base", () => {
+    const { SINGLE_PARTY_LIMITATION } = require("../scripts/setup-manifest.js");
+    const PIN = base.limitations[1];
+    const LOCAL = "beacon is local randomness, not a public value fixed in advance, so it is not independently verifiable";
+    const STALE_MULTI = "multi-party phase 2 (3 contributors: Old1, Old2, Old3): sound as long as at least one contributor generated their entropy honestly and destroyed it; all of them colluding (or all being compromised) could forge proofs";
+    const multiBase = {
+      ...base,
+      status: "DEMO-ONLY",
+      status_detail: "DEMO-ONLY (multi-party phase 2: 3 contributors + public beacon; phase 1 is a public ceremony): no production audit of the ceremony or the circuit; not for production",
+      phase2: { contributions: 3, contributors: [], beacon_public: true },
+      limitations: [STALE_MULTI, PIN, LOCAL],
+    };
+    const committedV4 = readJson(path.join(CIRCUITS, "setup", "integrated_access_v4.manifest.json"));
+    const bases = [
+      ["setup.sh single-party base", base],
+      ["synthetic multi-party base (stale multi-party + local-beacon lines)", multiBase],
+      ["the committed v4 manifest", committedV4],
+    ];
+    const phase2Lines = (m) => m.limitations.filter((l) => /single-party phase 2|multi-party phase 2/.test(l));
+
+    for (const [label, b] of bases) {
+      it(`${label}: n=1 -> DEV-ONLY with exactly the canonical single-party line, no multi-party or stale line`, () => {
+        const m = buildManifest(JSON.parse(JSON.stringify(b)), transcript(1, true), "t", "f");
+        assert.equal(m.status, "DEV-ONLY");
+        assert.match(m.status_detail, /single-party phase 2/);
+        assert.deepEqual(phase2Lines(m), [SINGLE_PARTY_LIMITATION]);
+        assert.equal(m.limitations[0], SINGLE_PARTY_LIMITATION);
+        assert.equal(m.phase2.limitation, SINGLE_PARTY_LIMITATION);
+        assert.ok(!m.limitations.includes(LOCAL), "public beacon: no local-beacon line");
+        assert.ok(m.limitations.includes(PIN), "phase-1 pin line kept");
+        assert.ok(m.limitations.every((l) => typeof l === "string" && l.length > 0));
+        assertFloor9Compatible(m);
+      });
+
+      it(`${label}: n=3 + public beacon -> DEMO-ONLY with only this transcript's multi-party line`, () => {
+        const m = buildManifest(JSON.parse(JSON.stringify(b)), transcript(3, true), "t", "f");
+        assert.equal(m.status, "DEMO-ONLY");
+        const lines = phase2Lines(m);
+        assert.equal(lines.length, 1);
+        assert.match(lines[0], /^multi-party phase 2 \(3 contributors: P1, P2, P3\): /);
+        assert.equal(m.limitations[0], lines[0]);
+        assert.equal(m.phase2.limitation, lines[0]);
+        assert.ok(!m.limitations.includes(LOCAL));
+        assert.ok(m.limitations.includes(PIN));
+        assertFloor9Compatible(m);
+      });
+
+      it(`${label}: n=3 + local beacon -> DEV-ONLY, this transcript's multi-party line and exactly one local-beacon line`, () => {
+        const m = buildManifest(JSON.parse(JSON.stringify(b)), transcript(3, false), "t", "f");
+        assert.equal(m.status, "DEV-ONLY");
+        assert.match(m.status_detail, /beacon not public/);
+        const lines = phase2Lines(m);
+        assert.equal(lines.length, 1);
+        assert.match(lines[0], /^multi-party phase 2 \(3 contributors: P1, P2, P3\): /);
+        assert.equal(m.limitations.filter((l) => l === LOCAL).length, 1);
+        assert.ok(m.limitations.includes(PIN));
+      });
+    }
+
+    it("applying it twice gives the same manifest (n=1, n=3 public, n=3 local)", () => {
+      for (const [n, pub] of [[1, true], [3, true], [3, false]]) {
+        const once = buildManifest(JSON.parse(JSON.stringify(base)), transcript(n, pub), "t", "f");
+        const twice = buildManifest(JSON.parse(JSON.stringify(once)), transcript(n, pub), "t", "f");
+        assert.deepEqual(twice, once, `n=${n} public=${pub}`);
+      }
+    });
+
+    it("the single-party base result is the pre-fix result (limitations order and content)", () => {
+      assert.deepEqual(buildManifest(base, transcript(1, true), "t", "f").limitations, [SINGLE_PARTY_LIMITATION, PIN]);
+      assert.deepEqual(buildManifest(base, transcript(2, false), "t", "f").limitations.slice(1), [PIN, LOCAL]);
+    });
+  });
+
   it("parseVerifyLog reads the newest-first contribution list in order", () => {
     const hex = (c) => Array.from({ length: 4 }, () => `\t\t${c.repeat(8)} ${c.repeat(8)} ${c.repeat(8)} ${c.repeat(8)}`).join("\n");
     const log = `[INFO]  snarkJS: Circuit hash: \n${hex("1")}\n[INFO]  snarkJS: contribution #2 Bob:\n${hex("b")}\n` +

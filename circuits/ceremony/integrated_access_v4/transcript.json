@@ -1,0 +1,67 @@
+{
+  "format": "zk-access-gate.ceremony-transcript v1",
+  "name": "integrated_access_v4",
+  "circuit": "circuits/integrated_access_v4.circom",
+  "circuit_source_sha256": "ed813254a00abac785f8e52ad27f9347f06d1d7420eff4d9b67b1432e7023630",
+  "circom_version": "2.2.3",
+  "circom_flags": "--O2 --r1cs --wasm --sym",
+  "snarkjs_version": "0.7.6",
+  "constraints": 9208,
+  "n_pub_in": 11,
+  "n_out": 1,
+  "r1cs_sha256": "652dae08da61188959fc3eb80039500427350cb79cdf58d498ed0bc6bac2714c",
+  "snarkjs_circuit_hash": "9cbc02222216ef8febcac91e09f5054ff93e966d26cd4a367ce673db77ec2fa237c7f6a5d990cb8d7f0de4abed74c96ce3bbe8f8a3c4dcbe809add6c1c68975d",
+  "ptau": {
+    "source": "pse-ppot-0080",
+    "file": "ppot_0080_15.ptau",
+    "power": 15,
+    "blake2b": "a6dd3adcf80f6716c4d082be2626e790af1f5ed3d760814dc439a07d91e93421382c91d4f705abe8cd90ef1956e4b7eaf58db29d81be5abe624dab4dae827f24",
+    "provenance": "PSE Perpetual Powers of Tau contribution 0080, prepared for phase 2 with a beacon (Ethereum beacon chain slot 7,325,000 randao_reveal, 31 iterations); downloaded over HTTPS from PSE's official bucket (https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080); header power 15, ceremonyPower 28, sections 12-15 present, 62 contributions in section 7; section 7 contains the published challenge_0080 hash (d9ec6fad4a7a7e3358a0c4bed7171622...) at offset 90185 and challenge_0081 hash (4bf672f3ba1de1bb6105e1ab88359612...) at offset 91706, matching 0080_carter_response/README.md; blake2b-512 pinned on first download 2026-11-08 (PSE publishes no hash for prepared files); full snarkjs powersoftau verify not run (2^28-point initial hash infeasible in the sandbox)"
+  },
+  "created": "2026-11-23T16:35:16.754Z",
+  "initial": {
+    "zkey": "integrated_access_v4_0000.zkey",
+    "zkey_sha256": "66cafd765e496240ec00920d57eb90228898de10ed32511d59c29a77914bc0e0"
+  },
+  "contributions": [
+    {
+      "order": 1,
+      "participant": "P1 circuits - simulated by agent on same machine",
+      "contribution_hash": "b94c7befc2143dac2ee41c774716c8e2d641ba7beac2f23df96b826dfa9070e3b68897b4b96da046b5a0feaec0b631535f74026f6ec2d0a00bf5ea0232f81ccf",
+      "zkey": "integrated_access_v4_0001.zkey",
+      "zkey_sha256": "64e08294b5240c37e109134363c518592f6124d917eb0e69be7faefbb5d72efb",
+      "prev_zkey_sha256": "66cafd765e496240ec00920d57eb90228898de10ed32511d59c29a77914bc0e0",
+      "date": "2026-11-23T16:36:02.831Z"
+    },
+    {
+      "order": 2,
+      "participant": "P2 identity - simulated by agent on same machine",
+      "contribution_hash": "65c1a72c1dac225ba16a973dabb762d32b32176ab6a2c520875acbccaa0c3f4a6ffbc6d5eddd1368f12e0e1b3e05e6eb91e2566ddacb4b8ad30d25e899a807cc",
+      "zkey": "integrated_access_v4_0002.zkey",
+      "zkey_sha256": "711ce556cb9e57bdfb8d4fd406ae79363a913b730b6404ec71003e73228314ac",
+      "prev_zkey_sha256": "64e08294b5240c37e109134363c518592f6124d917eb0e69be7faefbb5d72efb",
+      "date": "2026-11-23T16:37:35.750Z"
+    },
+    {
+      "order": 3,
+      "participant": "P3 gateway - simulated by agent on same machine",
+      "contribution_hash": "6ae8dc38bc675c88796e62e566b353dab2911b76fd199726902d8e444981ce29bf6d0ac43e92e8178f5a24997b4ae259314d832c18cf6788dd1ccc9f1938c7c9",
+      "zkey": "integrated_access_v4_0003.zkey",
+      "zkey_sha256": "58f37d60da398d894bc71d48d0d7f6cd8aae94025db59b55a3ae373d7af0c624",
+      "prev_zkey_sha256": "711ce556cb9e57bdfb8d4fd406ae79363a913b730b6404ec71003e73228314ac",
+      "date": "2026-11-23T16:39:01.145Z"
+    }
+  ],
+  "beacon": {
+    "name": "integrated_access_v4 final beacon",
+    "hash": "9c26abbf0594815ac1e143bc5c586518f1ddf2264411ebd7af4a8d17d6d022d2",
+    "iterations_exp": 10,
+    "source": "drand mainnet round 6667474",
+    "public": true,
+    "contribution_hash": "88c9928e5ad06a82d07a01679633a7607aef64eb2ec3128a653e567396ce1e27d9c47c49208f46178c457ca51778884faaf6a2c372338391b1100575c01151d4",
+    "zkey": "integrated_access_v4_final.zkey",
+    "zkey_sha256": "73f527f371539c34b4507f6f2c395fd9be2f0c2df53fd5af9df2caa8749d85e3",
+    "prev_zkey_sha256": "58f37d60da398d894bc71d48d0d7f6cd8aae94025db59b55a3ae373d7af0c624",
+    "date": "2026-11-23T17:35:21.243Z"
+  }
+}

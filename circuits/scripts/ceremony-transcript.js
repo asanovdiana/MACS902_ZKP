@@ -19,6 +19,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { SINGLE_PARTY_LIMITATION } = require("./setup-manifest.js");
 
 const FORMAT = "zk-access-gate.ceremony-transcript v1";
 const PARTICIPANT = /^[A-Za-z0-9][A-Za-z0-9 ._@'-]{0,63}$/;
@@ -262,6 +263,9 @@ function ptauInfo(args, need) {
  *   - status drops "DEV-ONLY" (to "DEMO-ONLY") only with >= 2 contributions, a public phase 1
  *     AND a public beacon; otherwise it stays "DEV-ONLY".
  */
+const LOCAL_BEACON_LIMITATION =
+  "beacon is local randomness, not a public value fixed in advance, so it is not independently verifiable";
+
 function buildManifest(m, t, transcriptRel, transcriptSha) {
   if (!t.beacon) throw new Error("ceremony not finalized");
   const people = t.contributions.map((c) => c.participant);
@@ -275,12 +279,14 @@ function buildManifest(m, t, transcriptRel, transcriptSha) {
     `multi-party phase 2 (${n} contributors: ${people.join(", ")}): sound as long as at least one ` +
     "contributor generated their entropy honestly and destroyed it; all of them colluding (or all being " +
     "compromised) could forge proofs";
-  const limitations = (m.limitations || []).filter((l) => !/single-party phase 2/.test(l));
-  if (!multi) limitations.unshift((m.limitations || []).find((l) => /single-party phase 2/.test(l)));
-  else limitations.unshift(phase2Limit);
-  if (!publicBeacon) {
-    limitations.push("beacon is local randomness, not a public value fixed in advance, so it is not independently verifiable");
-  }
+  // Idempotent: whatever phase-2 and beacon lines the base carries (a setup.sh single-party manifest,
+  // or an earlier ceremony's multi-party one) are dropped and replaced by the ones this transcript
+  // supports, so no stale line survives a re-run on top of an installed ceremony manifest.
+  const limitations = (Array.isArray(m.limitations) ? m.limitations : []).filter(
+    (l) => typeof l === "string" && !/single-party phase 2|multi-party phase 2/.test(l) && l !== LOCAL_BEACON_LIMITATION,
+  );
+  limitations.unshift(multi ? phase2Limit : SINGLE_PARTY_LIMITATION);
+  if (!publicBeacon) limitations.push(LOCAL_BEACON_LIMITATION);
 
   if (multi && publicPhase1 && publicBeacon) {
     out.status = "DEMO-ONLY";
@@ -308,9 +314,9 @@ function buildManifest(m, t, transcriptRel, transcriptSha) {
     beacon_contribution_hash: t.beacon.contribution_hash,
     transcript: transcriptRel,
     transcript_sha256: transcriptSha,
-    limitation: multi ? phase2Limit : limitations[0],
+    limitation: multi ? phase2Limit : SINGLE_PARTY_LIMITATION,
   };
-  out.limitations = limitations.filter(Boolean);
+  out.limitations = limitations;
   return out;
 }
 

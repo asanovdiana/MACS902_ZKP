@@ -128,3 +128,52 @@ one `clockAt` clock, so TTLs, epochs and the 30 s staleness window are determini
 | F4.06 | replay `NONCE_USED`; 4 concurrent identical requests admit exactly one; presented at exactly 120 s admitted; at 121 s `NONCE_EXPIRED` and burnt; committed fixture and forged nonces `NONCE_UNKNOWN` |
 | F5.07 | second proof (fresh nonce) in the epoch `RATE_LIMITED`; a `PROOF_INVALID` attempt does not consume the budget; another user independent; 3 concurrent same-nullifier proofs admit exactly one; the next epoch changes the nullifier and admits once more |
 | F7.05 | busy session (admissions, proxied requests, every denial, revocation, operator/admin reads); the gateway log, event stream, operator events and in-memory state contain no employee id/email, secret, salt, commitment, signature, attrHash, proof coordinate, session id or token value, and no attribute/identity/credential key at any depth; request log lines carry only `{id, method, url}` without query strings |
+
+### G2-S1-FINAL-001: F9.12 superseded by F9.13 (v4 is multi-party since the 2026-11-23 ceremony)
+
+Problem: F9.12's part-3 negatives built the "single-party committed key" mutations from
+`committedManifest("integrated_access_v4")`, assuming it is single-party. The 2026-11-23 phase-2
+ceremony (3 contributors + public drand beacon, all simulated on one machine; see
+`docs/ceremony/v4-ceremony-log.md`) made the committed v4 manifest multi-party and `DEMO-ONLY`, so
+three of those four mutations no longer violate anything (F9.12 failed on "single-party committed
+key relabelled DEMO-ONLY"). Separately, `circuits` found that `provenanceViolations` accepted a
+multi-party manifest carrying an extra contradictory `multi-party phase 2 (1 contributors: x)` line.
+
+Decision, per the "wrong test" rule: **F9.12 is kept with its ID, title and body unchanged; only
+`{ todo: "superseded by F9.13: ..." }` was added.** The new **F9.13** asserts everything F9.12 does,
+on bases that keep their kind whatever is committed, and is tighter:
+
+- the committed manifests pass, a committed multi-party claim has its transcript in the tree, and the
+  fixtures' `TEST_ONLY` matches the v4 key (as F9.12);
+- `buildManifest` output passes on synthetic transcripts (3 and 2 contributors with a public beacon
+  -> `DEMO-ONLY`; local beacon, dev phase 1, 1 contribution -> `DEV-ONLY`), built from **every**
+  committed manifest as base (single-party v3 and multi-party v4 today); new: re-finalising on top
+  of a multi-party result (3 -> 2 contributors, 3 -> 1) leaves no stale phase-2 line (requires the
+  `circuits` idempotence fix in `circuits/scripts/ceremony-transcript.js`);
+- single-party negatives are built from every committed single-party manifest (v3) and from the
+  synthetic 1-contribution builds: relabelled `DEMO-ONLY`, limitation dropped, an extra or replacing
+  multi-party line, inflated to 2 contributions (with `DEMO-ONLY` and with `DEV-ONLY`), the
+  single-party line twice, a `status_detail` claiming multi-party;
+- multi-party negatives are built from every committed multi-party manifest (v4) and from every
+  synthetic 3- and 2-contributor build: all of F9.12's (status, `status_detail`, contributions as an
+  array or missing, transcript hash, transcript absent, contributors missing/short/inflated/renamed/
+  empty/repeated, beacon hash, beacon contribution hash, phase 1 blake2b) plus beacon not public,
+  phase 1 not public, contributions set to 1 (with and without `DEV-ONLY`), contributions !=
+  contributors, a line naming another count or other people, `phase2.limitation` contradicting the
+  list, the line duplicated, and the side finding: **an extra `multi-party phase 2 (1 contributors:
+  x)` line**;
+- **new rule (`phase2LineViolations`)**: a manifest carries exactly one phase-2 limitation line; a
+  multi-party line names `phase2.contributions` contributors, equal to `phase2.contributors.length`,
+  listing exactly those participants; a single-party line only with 1 contribution; when
+  `phase2.limitation` is present it equals that line;
+- fixtures text negatives against the committed key of each kind (or a synthetic one if none is
+  committed).
+
+F9.06's computed `todo` reason now reads "superseded by F9.12 (G2-S1-SAFETY-022), itself superseded
+by F9.13" (still computed: F9.06 stays a hard test while every committed key is single-party).
+
+Checked in the post-ceremony tree: 85 tests, 83 pass, 0 fail, 2 todo (F9.06, F9.12). F9.13 fails on
+(a) the committed v3 manifest relabelled `DEMO-ONLY`, (b) the committed v4 manifest with an extra
+`multi-party phase 2 (1 contributors: x)` line (which `provenanceViolations` alone accepts), and
+(c) the committed v4 manifest with `phase2.contributions` set to 1. Without the `circuits`
+idempotence fix it fails on "rebuilt 3 -> 2 contributors", as intended.

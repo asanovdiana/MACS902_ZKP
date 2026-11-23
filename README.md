@@ -86,9 +86,9 @@ Path ownership is in [`docs/strategy.md`](docs/strategy.md) §2.
 | **P2: client prover and CLI** | Done: `keygen`, `request`, `status`, `prove` (v3 and v4), local policy pre-check, fast verify before returning. |
 | **P2: Attack Lab scripts** | Done: 9 attacks with expected reason codes (a *proposal* for the gateway). |
 | **P2: safety tier** | Done for the identity and circuit half: G1 floors review APPROVE; gateway half of floors 2-5 and 7 not signed until P3 ([review](docs/security/review-G1-P2.md) §5.3). |
-| Gateway, demo services (P3) | Other owner; not in this repo. Obligations 1-8 pending. |
-| Demo UI | Other owner; not in this repo. |
-| Keycloak baseline, `make demo`, CI | Other owner; not in this repo. CI is `None`. |
+| Gateway, demo services (P3) | Done in `p3/`: obligations 1-8 enforced with the team codes; gateway floor tests F3.09, F4.06, F5.07, F7.05 real and passing. Report: [`docs/report/p3-gateway.md`](docs/report/p3-gateway.md). |
+| Demo UI | Done in `p3/ui`: User Portal, Gateway Live View, SSO vs ZK, Admin Console, Attack Lab (team suite), Performance. Runbook: [`p3/DEMO.md`](p3/DEMO.md). |
+| Keycloak baseline, `make demo`, CI | Done: live Keycloak (PKCE, JWKS) in Docker; root `Makefile` (`make test`, `make demo`, `make test-keycloak`, `make e2e`); `.github/workflows/ci.yml`. |
 
 **Checkpoint G1 (P2 lane): CONDITIONAL** — nothing failed; open conditions are team or other-lane work
 (ceremony, gateway, CI). See [`docs/gates/G1/summary.md`](docs/gates/G1/summary.md).
@@ -143,7 +143,7 @@ kill %1
 ```
 
 Test commands: `npm test` (circuits, root), `npm test --prefix issuer`, `npm test --prefix client`,
-`npm test --prefix client/attacks`, `npm run test:safety`. There is no `make test` yet (devops).
+`npm test --prefix client/attacks`, `npm run test:safety`, or all of them plus P3 with `make test` (needs circom 2.2.3; `make help` lists every target).
 Flags, the full CLI and the admin API: [`client/README.md`](client/README.md),
 [`issuer/README.md`](issuer/README.md). The Attack Lab:
 `node client/attacks/bin/attacks.js list` and [`client/attacks/README.md`](client/attacks/README.md).

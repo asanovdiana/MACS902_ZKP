@@ -30,6 +30,7 @@ export function TeamAttackCard({
   running,
   disabled,
   onRun,
+  onRunRealWait,
 }: {
   id: string;
   title: string;
@@ -37,6 +38,8 @@ export function TeamAttackCard({
   running: boolean;
   disabled: boolean;
   onRun: () => void;
+  /** Only for attacks with a timed step (replay_expired): run against the real clock. */
+  onRunRealWait?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const meta = TITLES[id] ?? { n: '·', property: '' };
@@ -77,6 +80,17 @@ export function TeamAttackCard({
           )}{' '}
           {result ? 'Re-run' : 'Run'}
         </Button>
+        {onRunRealWait && (
+          <Button
+            variant="ghost"
+            className="px-3 py-1.5 text-xs"
+            onClick={onRunRealWait}
+            disabled={disabled}
+            title="Holds the proof 125 s on the real clock before presenting it"
+          >
+            Run with real wait (≈2 min)
+          </Button>
+        )}
       </header>
       {result && verdict && (
         <div className="mt-4 rounded-xl bg-ink-900/70 p-4 ring-1 ring-ink-700">
@@ -106,8 +120,8 @@ export function TeamAttackCard({
                       </span>
                       {s.skipped ? (
                         <span className="text-ink-400">
-                          skipped in the live demo (needs a real 125 s wait; runs with real proofs
-                          in the gateway e2e test)
+                          skipped (needs a real 125 s wait: use “Run with real wait”; the automated
+                          suite covers it with an injected clock)
                         </span>
                       ) : (
                         <span className={s.pass ? 'text-ok' : 'text-bad'}>

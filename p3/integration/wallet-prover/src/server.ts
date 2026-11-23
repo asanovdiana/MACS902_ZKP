@@ -203,6 +203,10 @@ export function createProver(cfg: ProverConfig) {
 
   app.post('/v1/attacks/:id/run', requireOperator, async (req, res) => {
     const id = req.params.id ?? '';
+    // ?waits=real: really wait (e.g. 125 s for replay_expired) against the live gateway's real clock.
+    // Default: steps that need a wait are reported as skipped (the automated suite covers them with
+    // an injected clock).
+    const realWaits = req.query.waits === 'real';
     const job = running.then(async () => {
       const { lab: l, world: w } = await getWorld();
       if (!l.ATTACK_IDS.includes(id))
@@ -214,8 +218,8 @@ export function createProver(cfg: ProverConfig) {
       const built = await l.buildAttack(id, w);
       const run = await l.runAttack(built, {
         send: l.httpSender(cfg.gatewayUrl),
-        wait: (s: number) => w.advance(s),
-        skipWaits: true,
+        wait: (s: number) => w.advance(s), // remote issuer: advance() sleeps in real time
+        skipWaits: !realWaits,
       });
       return {
         status: 200,

@@ -120,10 +120,10 @@ including the 125 s nonce expiry of `replay_expired` (`p3/gateway/tests/team-v4.
 **Continuous integration.**
 
 Every push and pull request to `main` runs [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
-on GitHub Actions with four jobs: `circuits` (the full circuit suite with circom 2.2.3, artifact and
-reference-vector checks), `identity` (issuer, client, attack suite), `safety` (the floor tier above)
-and `p3` (typecheck, lint, format, tests, build). Locally the same suites run with `make test`; the
-Docker demo starts with `make demo`.
+on GitHub Actions with three jobs: `make test (all suites)` (circuits with circom 2.2.3, issuer,
+client, attack suite, the safety tier above and the P3 checks), `live Keycloak (Docker)` (a real PKCE
+login against Keycloak) and `docker compose demo + Playwright` (the demo stack end to end in a
+browser). Locally the same suites run with `make test`; the Docker demo starts with `make demo`.
 
 ## 9. Privacy comparison
 

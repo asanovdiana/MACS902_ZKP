@@ -40,12 +40,12 @@ Open **http://localhost:5173** and sign in with `OPERATOR_TOKEN` from `env.examp
 ## Docker (full stack)
 
 ```bash
-cd p3 && docker compose up --build   # UI http://localhost:8088 · Keycloak http://localhost:8080
+make demo        # from the repository root (= cd p3 && docker compose up --build -d)
 ```
 
-Builds from the repository root. A one-shot `setup` container enrols the personas and pins the issuer key before the gateway starts.
+UI <http://localhost:8088> (use `localhost`: Keycloak redirects there) · Keycloak <http://localhost:8080>. Builds from the repository root. A one-shot `setup` container enrols the personas and pins the issuer key before the gateway starts. The presentation script and recording plan are in [DEMO.md](DEMO.md); `make demo-reset` gives a fresh registry.
 
-With the stack up, `scripts/sso-live-check.sh` runs a real Keycloak login inside Docker (Authorization Code + PKCE through the SSO front door, token exchange and JWT validation), then checks that alice is admitted to the Wiki, denied the Admin Panel by policy, and that a wrong password or no session gets nothing.
+Root `make` targets: `make test` (every project suite incl. P3, needs circom 2.2.3), `make test-p3`, `make test-keycloak` (live Keycloak in Docker), `make e2e` (Playwright against the demo), `make help`.
 
 ## Commands
 

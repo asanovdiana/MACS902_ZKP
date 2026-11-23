@@ -160,7 +160,7 @@ the team issuer, a one-shot `setup` container that enrols the personas and write
 the services (internal network only), the gateway, the wallet prover, the SSO front door and the UI
 on port 8088 ([`p3/docker-compose.yml`](../../p3/docker-compose.yml)). The gateway starts only after
 setup succeeds and runs with `ALLOW_DEMO_KEYS=true`. All secrets in the compose file are development
-defaults. `p3/scripts/sso-live-check.sh` drives a real Keycloak login inside the stack.
+defaults. `make test-keycloak` drives a real Keycloak PKCE login (`p3/baseline/sso-gateway/tests/keycloak.live.test.ts`), and `make e2e` runs the Playwright demo tests against the stack.
 
 ## 7. Tests
 

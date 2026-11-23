@@ -1,12 +1,13 @@
-# ZK Access Gate CI (risk R-007, safety SR-17). One job per suite so a failure is visible by job
-# name. Each job calls the same root Makefile target a developer runs locally.
-name: CI
+# ZK Access Gate CI (P3 devops lane; closes risk R-007 / safety SR-17).
+# Runs every project suite on Node 22 with circom 2.2.3 built from its tagged source, plus the live
+# Keycloak test and a Docker build + Playwright run of the full demo. Any failure fails the workflow.
+name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,139 +17,85 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # engines: root sub-packages >=20, p3 >=20.11
   NODE_VERSION: "22"
   CIRCOM_VERSION: "2.2.3"
 
 jobs:
-  circuits:
-    name: circuits
-    runs-on: ubuntu-24.04
+  test:
+    name: make test (all suites)
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0 # floor 10 (append-only tests) reads the git history
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: npm ci (root)
-        run: make install-root
-
-      - name: Set up circom
-        uses: ./.github/actions/setup-circom
-        with:
-          version: ${{ env.CIRCOM_VERSION }}
-
-      - name: Toolchain check
-        run: make check-env
-
-      - name: Cache Powers of Tau
+          cache-dependency-path: |
+            package-lock.json
+            issuer/package-lock.json
+            p3/package-lock.json
+      - name: Cache circom ${{ env.CIRCOM_VERSION }}
+        id: circom-cache
         uses: actions/cache@v4
         with:
-          path: ~/zkp-cache/ptau
-          key: ptau-pse-ppot0080-15
-
-      - name: Fetch pinned PSE ptau (power 15, blake2b-checked)
-        run: PTAU_SOURCE=pse PTAU_POWER=15 circuits/scripts/ptau.sh
-
-      - name: Circuit tests (npm test)
-        run: make test-circuits
-
-      - name: Committed artefacts match manifests (artifacts:check)
+          path: ~/.cargo/bin/circom
+          key: circom-${{ env.CIRCOM_VERSION }}-${{ runner.os }}
+      - name: Build circom ${{ env.CIRCOM_VERSION }} from the tagged source
+        if: steps.circom-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/iden3/circom.git --tag v${{ env.CIRCOM_VERSION }} circom
+      - run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - run: make check-circom
+      - run: make install
+      - name: Committed artefacts match their manifests
         run: make artifacts-check
+      - name: All suites (circuits, issuer, client, attacks, safety incl. gateway floors, p3)
+        run: make test
 
-      - name: Committed vectors up to date (gen-vectors --check)
-        run: make vectors-check
-
-  identity:
-    name: identity
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            issuer/package-lock.json
-
-      # client/ and client/attacks/ have no lockfile: they resolve deps from the root node_modules.
-      - name: npm ci (root, issuer)
-        run: make install-root install-issuer
-
-      # issuer's cross-check suite (floor 8) compiles the circuits.
-      - name: Set up circom
-        uses: ./.github/actions/setup-circom
-        with:
-          version: ${{ env.CIRCOM_VERSION }}
-
-      - name: issuer, client, client/attacks tests
-        run: make test-identity
-
-  safety:
-    name: safety
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            issuer/package-lock.json
-
-      # tests/safety has no lockfile: it loads snarkjs from the root and fastify via issuer/src.
-      - name: npm ci (root, issuer)
-        run: make install-root install-issuer
-
-      # F8.05 runs the issuer cross-check suite, which compiles the circuits.
-      - name: Set up circom
-        uses: ./.github/actions/setup-circom
-        with:
-          version: ${{ env.CIRCOM_VERSION }}
-
-      - name: Floor tier (tests/safety)
-        run: make test-safety
-
-  p3:
-    name: p3
-    runs-on: ubuntu-24.04
+  keycloak-live:
+    name: live Keycloak (Docker)
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: p3
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: p3/package-lock.json
+      - run: npm ci --prefix p3
+      - run: npm run build --prefix p3 -w shared
+      - name: Real PKCE login, JWKS validation and policies against Keycloak
+        run: make test-keycloak
+      - if: failure()
+        run: docker compose --project-directory p3 -f p3/docker-compose.yml logs keycloak
 
-      - name: npm ci (p3)
-        run: npm ci --no-audit --no-fund
-
-      - name: typecheck
-        run: npm run typecheck
-
-      - name: lint
-        run: npm run lint
-
-      - name: format:check
-        run: npm run format:check
-
-      - name: test
-        run: npm test
-
-      - name: build
-        run: npm run build
+  demo-e2e:
+    name: docker compose demo + Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: p3/package-lock.json
+      - run: make demo
+      - name: Wait for the gateway to report real ZK authorization
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8088/api/status | grep -q '"zkAuthorization":"ready"'; then exit 0; fi
+            sleep 4
+          done
+          echo "demo did not become ready"; exit 1
+      - run: npm ci --prefix p3
+      - run: npx --prefix p3/ui playwright install --with-deps chromium
+      - name: Browser end-to-end tests against the containerised demo (incl. real Keycloak login)
+        run: make e2e
+        env:
+          E2E_KEYCLOAK: "1"
+      - if: failure()
+        run: docker compose --project-directory p3 -f p3/docker-compose.yml logs --tail=200

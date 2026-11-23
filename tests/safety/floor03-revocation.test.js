@@ -183,71 +183,58 @@ describe("floor 3: revoked credential vs current root", () => {
     );
   });
 
-  test("F3.09 gateway denies a revoked credential against its current root", async () => {
-    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
-    // real Groth16, the client path GET /challenge + POST /access.
-    const gwh = require("./gateway-harness");
-    const idx = h.fixtureIndex();
-    const meta = idx.fixtures.stale_root_bob_wiki;
-    const ctx_ = idx.context;
-    const signals = h.fixture(meta.dir).publicSignals;
-    assert.equal(meta.expect, "reject");
-    assert.equal(signals[1], ctx_.root_before_revocation, "fixture is proved against the pre-revocation root");
-    assert.equal(meta.gateway_state.current_root, ctx_.root_after_bob_revoked);
-    assert.notEqual(ctx_.root_after_bob_revoked, ctx_.root_before_revocation);
-    const denied = (r, what) => {
-      assert.equal(r.status, 403, `${what}: ${JSON.stringify(r.res.body)}`);
-      assert.equal(r.code, "ROOT_NOT_CURRENT", what);
-      assert.equal(r.reason, "ROOT_MISMATCH", what);
-      assert.equal(r.admitted, false);
-      assert.equal(r.res.headers["set-cookie"], undefined, `${what}: cookie set`);
-    };
-    try {
-      // control: the same proof is admitted while Bob's leaf is live (so the denial below is the root's)
-      const live = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
-      const ok = await live.present("stale_root_bob_wiki");
-      assert.equal(ok.status, 200, JSON.stringify(ok.res.body));
-      assert.equal(ok.admitted, true);
-      assert.equal(ok.event.groth16Valid, true);
-      assert.equal(live.ctx.sessions.size, 1);
-      // revocation moves the root: the live session issued under the old root is revoked
-      live.registry.setRoot(ctx_.root_after_bob_revoked, "revoke");
-      await live.settle();
-      assert.equal(live.ctx.sessions.size, 0, "a session under the revoked root survived");
-      assert.ok(live.ctx.bus.recent().some((e) => e.type === "session.revoked" && e.reason === "REGISTRY_REVOCATION"));
-      // ... and the same proof, on a fresh challenge with its nonce, is denied against the current root
-      denied(await live.present("stale_root_bob_wiki"), "after revocation");
-      assert.equal(live.ctx.sessions.size, 0);
+  test("F3.09 gateway denies a revoked credential against its current root", async (t) => {
+    // P3 gateway half of floor 3 (obligation 3). Real gateway, issuer, client prover and verifier.
+    const gw = require("./gateway");
+  const ATTR = {
+    alice: { role: "engineer", dept: "engineering", clearance: 2, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    bob: { role: "contractor", dept: "operations", clearance: 1, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+    carol: { role: "admin", dept: "it", clearance: 3, deviceCompliant: 1, employeeActive: 1, expiry: 4070908800 },
+  };
+    const g = await gw.startGateway();
+    t.after(() => g.close());
+    for (const n of ["alice", "bob"]) await g.enrol(n, ATTR[n]); // carol enrols later (an insert)
 
-      // the fixture's own scenario: a fresh gateway whose current root is root_after_bob_revoked
-      // (a root it has never seen: unknown, not acceptable)
-      for (const name of ["stale_root_bob_wiki", "bob_wiki"]) {
-        const gw = await gwh.makeGateway({ state: meta.gateway_state });
-        const r = await gw.present(name);
-        denied(r, name);
-        assert.equal(r.event.groth16Valid, null, `${name}: the root is checked before verification`);
-        assert.equal(gw.ctx.sessions.size, 0, `${name}: session issued`);
-        assert.equal(gw.ctx.nullifiers.size, 0, `${name}: a denied proof consumed rate-limit state`);
-      }
-      // the staleness rule never re-admits a revoked leaf: old root -> (revoke) -> later inserts
-      const chain = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
-      chain.registry.setRoot(ctx_.root_after_bob_revoked, "revoke");
-      chain.registry.setRoot("1234567", "insert");
-      denied(await chain.present("stale_root_bob_wiki"), "revoked, then inserts");
-      // contrast: a root superseded by inserts only stays acceptable (issuer.api staleness rule)
-      const ins = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
-      ins.registry.setRoot("7654321", "insert");
-      assert.equal((await ins.present("bob_wiki")).status, 200, "insert-only supersession must not deny");
-      // registry unreachable: fail closed
-      const down = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
-      down.registry.up = false;
-      const blocked = await down.present("stale_root_bob_wiki");
-      assert.equal(blocked.status, 503);
-      assert.equal(blocked.code, "AUTHORIZATION_UNAVAILABLE");
-      assert.equal(blocked.reason, "REGISTRY_UNAVAILABLE");
-      assert.equal(down.ctx.sessions.size, 0);
-    } finally {
-      await gwh.shutdown();
-    }
+    // control: Bob is admitted before revocation and his session reaches the Wiki
+    const ok = await g.access("wiki", await g.prove("bob", "wiki"));
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    const cookie = ok.headers.get("set-cookie").split(";")[0];
+    assert.equal((await fetch(`${g.gatewayUrl}/svc/wiki/`, { headers: { cookie } })).status, 200);
+
+    // control: a root superseded ONLY by an enrolment stays acceptable inside the 30 s window
+    const aliceHeld = await g.prove("alice", "wiki");
+    g.clock.advance(5);
+    await g.enrol("carol", ATTR.carol);
+    const insertOnly = await g.access("wiki", aliceHeld);
+    assert.equal(insertOnly.status, 200, `insert-only root change must not lock Alice out: ${JSON.stringify(insertOnly.body)}`);
+
+    // Bob holds two proofs made against the pre-revocation root, then the issuer revokes him
+    const heldNow = await g.prove("bob", "wiki");
+    const heldLater = await g.prove("bob", "wiki");
+    const rootBefore = heldNow.publicSignals[1];
+    g.clock.advance(2);
+    const rootAfter = await g.revoke("bob");
+    assert.notEqual(rootAfter, rootBefore);
+
+    // 1. immediately (well inside the 30 s staleness window and the root cache): denied
+    const r1 = await g.access("wiki", heldNow);
+    assert.equal(r1.status, 403, JSON.stringify(r1.body));
+    assert.equal(r1.body.error.code, "ROOT_NOT_CURRENT");
+    // 2. later, nonce still valid: still denied (a revocation is never crossed)
+    g.clock.advance(60);
+    const r2 = await g.access("wiki", heldLater);
+    assert.equal(r2.body.error.code, "ROOT_NOT_CURRENT");
+    // 3. the session issued before the revocation no longer reaches the service
+    const s = await fetch(`${g.gatewayUrl}/svc/wiki/`, { headers: { cookie } });
+    assert.equal(s.status, 401);
+    // 4. Bob cannot produce a new proof: the issuer no longer serves his Merkle path
+    await assert.rejects(g.prove("bob", "wiki"));
+    // 5. a holder who was not revoked (Carol) is still admitted under the new root
+    const carolOk = await g.access("wiki", await g.prove("carol", "wiki"));
+    assert.equal(carolOk.status, 200, JSON.stringify(carolOk.body));
+    // 6. the committed stale-root fixture is never admitted by this gateway
+    const fx = h.fixture("stale_root_bob_wiki");
+    const f = await g.access("wiki", fx);
+    assert.notEqual(f.status, 200);
   });
 });

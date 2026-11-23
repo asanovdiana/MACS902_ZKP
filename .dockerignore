@@ -1,0 +1,15 @@
+# Build context for p3/docker-compose.yml (context: the repo root). Keep host-only and local state
+# out of the images: dependencies are installed inside the image with npm ci.
+.git
+.github
+.claude
+**/node_modules
+build
+circuits/ceremony/**/build
+circuits/ceremony/**/*.zkey
+**/.env
+p3/.v4-demo
+p3/ui/test-results
+p3/ui/playwright-report
+p3/artifacts
+p3/integration/p1-diagnostics/build

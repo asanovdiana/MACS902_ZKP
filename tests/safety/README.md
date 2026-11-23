@@ -5,8 +5,13 @@ registered in `MANIFEST.json`.
 
 ```sh
 npm ci && npm ci --prefix issuer      # once: root (circomlib, snarkjs, zk-kit) and issuer (fastify)
+npm ci --prefix p3 && npm --prefix p3 run build -w shared   # once: the P3 gateway (F3.09, F4.06, F5.07, F7.05)
 npm test --prefix tests/safety        # node:test, ~1-2 min, no circom compile needed
 ```
+
+The gateway tests load `p3/gateway/src` (TypeScript, via p3's `tsx`) and `@zkag/shared` from its
+build (`p3/shared/dist`). Without p3's dependencies, or with a missing or stale shared build, they
+**fail** with the setup command above; they never skip.
 
 Requires circom 2.2.3 on `PATH` only for F8.05 (it runs `issuer/test/crosscheck.v4.test.js`,
 which compiles the v4 main at `--O0` into `build/test/`).
@@ -14,8 +19,9 @@ which compiles the v4 main at `--O0` into `build/test/`).
 What the tier reuses (nothing is re-implemented): `circuits/lib`, the committed v4 artefacts
 (`circuits/setup/integrated_access_v4.wasm` + verification key), `circuits/fixtures/v4`,
 `circuits/scripts/verify.js`, `circuits/reports/mutation-v4.json`, `issuer/src` (in-process, temp
-key/data dirs) and `client/src`. Tests named `... gateway ...` with `todo` are the gateway half of
-floors 3, 4, 5 and 7: the gateway (P3) is not in this repository.
+key/data dirs) and `client/src`. The gateway half of floors 3, 4, 5 and 7 (F3.09, F4.06, F5.07,
+F7.05) drives the real P3 gateway in-process through `gateway-harness.js` (see its header for every
+seam it uses; nothing under `p3/` is modified).
 
 ## Append-only rules (floor 10)
 
@@ -112,3 +118,38 @@ install, `circuits` must update `access-fixtures.js` `TEST_ONLY` (multi-party, `
 Not asserted (observation): the committed `status_detail` reads "DEMO-ONLY (single-party phase 2)"
 while `status` is `DEV-ONLY`; the status field governs, and the detail names the single-party
 limitation, so it is not an overstatement, but `circuits` should align the wording when re-keying.
+
+### R-008: gateway floor tests against the real P3 gateway (todo -> real)
+
+The P3 gateway is now in the tree (`p3/gateway`). The four gateway tests kept their ID and title;
+only the `todo` option and the empty body were replaced. Each drives the real gateway in-process
+(`createApp` with an injected `FakeClock`, the gateway's own `FakeRegistry`, a captured pino logger
+and the existing `testOverrides.profile` seam), over HTTP (supertest), with the real snarkjs
+verifier, the gateway's own artefact loader (manifest + vkey sha256) and the committed
+`circuits/fixtures/v4` proofs, vkey and `fixtures.json`, all read from disk at test time. New file:
+`gateway-harness.js` (not a test file; no new IDs).
+
+| ID | What changed and why |
+|---|---|
+| F3.09 | todo -> real: `stale_root_bob_wiki` at its `gateway_state` (current root = `root_after_bob_revoked`) is `403 ROOT_MISMATCH`, no session, no nullifier recorded, no cookie; same for `bob_wiki`. Control: the same proof is admitted at `root_before_revocation`; moving the root revokes that live session at once (`session.revoked REGISTRY_ROOT_CHANGED`) and a re-presentation is `ROOT_MISMATCH`. Registry down: `503 REGISTRY_UNAVAILABLE`, fail closed |
+| F4.06 | todo -> real: replay of `alice_wiki` is `409 CHALLENGE_REPLAYED` before verification, also with a re-randomised `(-A,-B,C)` proof; the used proof on a new challenge is `NONCE_MISMATCH`; a non-canonical nonce spelling is `400` before verification; one session only. Expired: challenge TTL is exactly `nonce_ttl_seconds` (120 s); at TTL + 1 s `403 CHALLENGE_EXPIRED` and the challenge is burnt (`409` after); control at TTL - 1 s admitted. `stale_now_alice_wiki` at `gateway_now` is denied (`EPOCH_MISMATCH`/`TIME_OUT_OF_RANGE`), no session, no nullifier; control: admitted only at its own old clock |
+| F5.07 | todo -> real: `same_epoch_a` admitted, then `same_epoch_b` `429 NULLIFIER_RATE_LIMITED` although its proof verifies, one session, `nullifier.rate_limited` event; `alice_wiki` in the same epoch also 429; `alice_file_share` (other nullifier) and `carol_wiki` (other user) still admitted; a and b submitted concurrently: exactly one 200; reverse order: b admitted, a limited |
+| F7.05 | todo -> real: one gateway run over every v4 fixture (5 admissions; replay, rate limit, forged issuer, stale now, wrong service, malformed, unknown challenge, revoked root denials). The raw (unredacted) pino log and the whole in-memory state (challenges, nullifiers, sessions, event history, root history, registry, operator) are walked: no identity key (username, email, role, dept/department, clearance, attributes, ...), no email-shaped value, no persona name, no role/department label of the fixture personas (the services' own policy summaries excepted, obligation 8), and no persona secret, salt, commitment, attrHash, signature or Merkle sibling. Checked to fail on an injected `clearance` log field, an email in a log message, a department label in an event and a `dept` key on a stored challenge |
+
+Seams and gaps, stated plainly (for `gateway`):
+
+- **No v4 profile in the gateway.** P3 ships `p1-integrated-v3` and the proposed `zkag-access-v1`,
+  whose signal order differs from `access.public_signals v4`. The harness builds the v4 profile
+  from `fixtures.json` `public_signals` (`now` -> the gateway's `currentTime`) through
+  `testOverrides.profile`; the pipeline looks signals up by name, so every check above is the
+  gateway's own code. Once `gateway` adds a v4 profile, the harness should use it.
+- **Fixture nonce.** The gateway draws a random nonce; the harness issues a real challenge and then
+  sets that stored challenge's nonce to the fixture's (`ctx.challenges.peek`), i.e. "the RNG drew
+  it". Every other challenge property is the gateway's.
+- **Obligation 5 is enforced as a skew bound, not equality.** The gateway does not store `now`
+  with the challenge; it checks `|now - clock| <= CLOCK_SKEW_SECONDS` and epoch equality. F4.06
+  asserts the denial of `stale_now_alice_wiki`, which this satisfies; exact `now` equality is not
+  asserted (it would fail today).
+- **Rate-limit key.** The gateway keys `(resource, epoch, nullifier)`; since `resourceId` feeds the
+  nullifier this is equivalent to the contract's `(nullifier, epoch)`.
+

@@ -183,5 +183,57 @@ describe("floor 3: revoked credential vs current root", () => {
     );
   });
 
-  test("F3.09 gateway denies a revoked credential against its current root", { todo: "gateway (P3) not in this repository; fixture stale_root_bob_wiki is its test input" }, () => {});
+  test("F3.09 gateway denies a revoked credential against its current root", async () => {
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js), real Groth16 verification.
+    const gwh = require("./gateway-harness");
+    const idx = h.fixtureIndex();
+    const meta = idx.fixtures.stale_root_bob_wiki;
+    const ctx_ = idx.context;
+    const signals = h.fixture(meta.dir).publicSignals;
+    assert.equal(meta.expect, "reject");
+    assert.equal(signals[1], ctx_.root_before_revocation, "fixture is proved against the pre-revocation root");
+    assert.equal(meta.gateway_state.current_root, ctx_.root_after_bob_revoked);
+    assert.notEqual(ctx_.root_after_bob_revoked, ctx_.root_before_revocation);
+    try {
+      // control: the same proof is admitted while Bob's leaf is live (so the denial below is the root's)
+      const live = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      const ok = await live.present("stale_root_bob_wiki");
+      assert.equal(ok.res.status, 200, JSON.stringify(ok.res.body));
+      assert.equal(ok.res.body.decision, "granted");
+      assert.equal(ok.res.body.groth16.valid, true);
+      assert.equal(live.ctx.sessions.size, 1);
+      // revocation moves the root: the live session issued under the old root is revoked at once
+      live.registry.setRoot(ctx_.root_after_bob_revoked);
+      assert.equal(live.ctx.sessions.size, 0, "a session under the superseded root survived revocation");
+      assert.ok(live.ctx.bus.recent().some((e) => e.type === "session.revoked" && e.reason === "REGISTRY_ROOT_CHANGED"));
+      // ... and the same proof, on a fresh challenge with its nonce, is denied against the current root
+      const again = await live.present("stale_root_bob_wiki");
+      assert.equal(again.res.status, 403);
+      assert.equal(again.res.body.reason, "ROOT_MISMATCH");
+      assert.equal(live.ctx.sessions.size, 0);
+
+      // the fixture's own scenario: a fresh gateway whose current root is root_after_bob_revoked
+      for (const name of ["stale_root_bob_wiki", "bob_wiki"]) {
+        const gw = await gwh.makeGateway({ state: meta.gateway_state });
+        const { res } = await gw.present(name);
+        assert.equal(res.status, 403, `${name}: ${JSON.stringify(res.body)}`);
+        assert.equal(res.body.decision, "denied");
+        assert.equal(res.body.reason, "ROOT_MISMATCH");
+        assert.equal(res.body.root.trusted, ctx_.root_after_bob_revoked);
+        assert.equal(res.body.session, undefined);
+        assert.equal(gw.ctx.sessions.size, 0, `${name}: session issued`);
+        assert.equal(gw.ctx.nullifiers.size, 0, `${name}: a denied proof consumed rate-limit state`);
+        assert.equal(res.headers["set-cookie"], undefined);
+      }
+      // registry unreachable: fail closed, never fall back to a cached/old root
+      const down = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      down.registry.up = false;
+      const blocked = await down.present("stale_root_bob_wiki");
+      assert.equal(blocked.res.status, 503);
+      assert.equal(blocked.res.body.reason, "REGISTRY_UNAVAILABLE");
+      assert.equal(down.ctx.sessions.size, 0);
+    } finally {
+      await gwh.shutdown();
+    }
+  });
 });

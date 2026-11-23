@@ -23,6 +23,11 @@ function parseArgs(argv) {
 const hash = (algo, file) => crypto.createHash(algo).update(fs.readFileSync(file)).digest("hex");
 const sha256 = (file) => hash("sha256", file);
 
+// The single-party phase-2 limitation, word for word (tests/safety F9.06/F9.12 and the circuits
+// tests match it). ceremony-transcript.js buildManifest reuses it for a 1-contribution ceremony.
+const SINGLE_PARTY_LIMITATION =
+  "single-party phase 2 — whoever ran setup could forge proofs; replace via the multi-party ceremony before any real use";
+
 // Public signals in snarkjs order = .sym entries with signal index 1..nOut+nPubIn
 // (outputs first, then public inputs in template declaration order). At --O2 merged signals get
 // witness index -1 (2nd column); the signal index (1st column) of a public signal is its position.
@@ -52,9 +57,7 @@ function main() {
   // Phase 1 from a public multi-party ceremony (PSE ppot 0080, or Hermez while it was downloadable)
   // is fine for a demo; a local dev ceremony or an unknown external file is not.
   const publicPhase1 = ptau.source === "pse-ppot-0080" || ptau.source === "hermez";
-  const limitations = [
-    "single-party phase 2 — whoever ran setup could forge proofs; replace via the multi-party ceremony before any real use",
-  ];
+  const limitations = [SINGLE_PARTY_LIMITATION];
   if (!publicPhase1) {
     limitations.unshift(
       `DEV-ONLY phase 1 (ptau source "${ptau.source}"): not a public ceremony; re-run with PTAU_SOURCE=pse before any real use`,
@@ -102,4 +105,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { publicSignalNames };
+module.exports = { publicSignalNames, SINGLE_PARTY_LIMITATION };

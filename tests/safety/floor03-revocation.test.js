@@ -183,5 +183,71 @@ describe("floor 3: revoked credential vs current root", () => {
     );
   });
 
-  test("F3.09 gateway denies a revoked credential against its current root", { todo: "gateway (P3) not in this repository; fixture stale_root_bob_wiki is its test input" }, () => {});
+  test("F3.09 gateway denies a revoked credential against its current root", async () => {
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
+    // real Groth16, the client path GET /challenge + POST /access.
+    const gwh = require("./gateway-harness");
+    const idx = h.fixtureIndex();
+    const meta = idx.fixtures.stale_root_bob_wiki;
+    const ctx_ = idx.context;
+    const signals = h.fixture(meta.dir).publicSignals;
+    assert.equal(meta.expect, "reject");
+    assert.equal(signals[1], ctx_.root_before_revocation, "fixture is proved against the pre-revocation root");
+    assert.equal(meta.gateway_state.current_root, ctx_.root_after_bob_revoked);
+    assert.notEqual(ctx_.root_after_bob_revoked, ctx_.root_before_revocation);
+    const denied = (r, what) => {
+      assert.equal(r.status, 403, `${what}: ${JSON.stringify(r.res.body)}`);
+      assert.equal(r.code, "ROOT_NOT_CURRENT", what);
+      assert.equal(r.reason, "ROOT_MISMATCH", what);
+      assert.equal(r.admitted, false);
+      assert.equal(r.res.headers["set-cookie"], undefined, `${what}: cookie set`);
+    };
+    try {
+      // control: the same proof is admitted while Bob's leaf is live (so the denial below is the root's)
+      const live = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      const ok = await live.present("stale_root_bob_wiki");
+      assert.equal(ok.status, 200, JSON.stringify(ok.res.body));
+      assert.equal(ok.admitted, true);
+      assert.equal(ok.event.groth16Valid, true);
+      assert.equal(live.ctx.sessions.size, 1);
+      // revocation moves the root: the live session issued under the old root is revoked
+      live.registry.setRoot(ctx_.root_after_bob_revoked, "revoke");
+      await live.settle();
+      assert.equal(live.ctx.sessions.size, 0, "a session under the revoked root survived");
+      assert.ok(live.ctx.bus.recent().some((e) => e.type === "session.revoked" && e.reason === "REGISTRY_REVOCATION"));
+      // ... and the same proof, on a fresh challenge with its nonce, is denied against the current root
+      denied(await live.present("stale_root_bob_wiki"), "after revocation");
+      assert.equal(live.ctx.sessions.size, 0);
+
+      // the fixture's own scenario: a fresh gateway whose current root is root_after_bob_revoked
+      // (a root it has never seen: unknown, not acceptable)
+      for (const name of ["stale_root_bob_wiki", "bob_wiki"]) {
+        const gw = await gwh.makeGateway({ state: meta.gateway_state });
+        const r = await gw.present(name);
+        denied(r, name);
+        assert.equal(r.event.groth16Valid, null, `${name}: the root is checked before verification`);
+        assert.equal(gw.ctx.sessions.size, 0, `${name}: session issued`);
+        assert.equal(gw.ctx.nullifiers.size, 0, `${name}: a denied proof consumed rate-limit state`);
+      }
+      // the staleness rule never re-admits a revoked leaf: old root -> (revoke) -> later inserts
+      const chain = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      chain.registry.setRoot(ctx_.root_after_bob_revoked, "revoke");
+      chain.registry.setRoot("1234567", "insert");
+      denied(await chain.present("stale_root_bob_wiki"), "revoked, then inserts");
+      // contrast: a root superseded by inserts only stays acceptable (issuer.api staleness rule)
+      const ins = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      ins.registry.setRoot("7654321", "insert");
+      assert.equal((await ins.present("bob_wiki")).status, 200, "insert-only supersession must not deny");
+      // registry unreachable: fail closed
+      const down = await gwh.makeGateway({ state: meta.gateway_state, root: ctx_.root_before_revocation });
+      down.registry.up = false;
+      const blocked = await down.present("stale_root_bob_wiki");
+      assert.equal(blocked.status, 503);
+      assert.equal(blocked.code, "AUTHORIZATION_UNAVAILABLE");
+      assert.equal(blocked.reason, "REGISTRY_UNAVAILABLE");
+      assert.equal(down.ctx.sessions.size, 0);
+    } finally {
+      await gwh.shutdown();
+    }
+  });
 });

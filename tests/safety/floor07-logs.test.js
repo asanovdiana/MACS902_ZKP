@@ -139,5 +139,155 @@ describe("floor 7: logs and state hold no identity attributes", () => {
     });
   });
 
-  test("F7.05 gateway log and state hold no username, email, role, department or clearance", { todo: "gateway (P3) not in this repository" }, () => {});
+  test("F7.05 gateway log and state hold no username, email, role, department or clearance", async () => {
+    // Real P3 gateway in-process (tests/safety/gateway-harness.js): integrated-access-v4 profile,
+    // real Groth16, the client path GET /challenge + POST /access. A run of admits and denials over
+    // every committed v4 fixture; then its raw (unredacted) log output and its whole in-memory state
+    // (challenges, nullifiers, sessions, event history, root history) are scanned for the fixture
+    // personas' identity and attributes.
+    const gwh = require("./gateway-harness");
+    const idx = h.fixtureIndex();
+    const vec = h.vectorsV4();
+    try {
+      const gw = await gwh.makeGateway({ state: idx.fixtures.alice_wiki.gateway_state });
+      const st = {};
+      const rec = (k, r) => { st[k] = `${r.status} ${r.code || (r.admitted ? "admitted" : "?")}`; return r; };
+      const run = async (name, opts) => rec(name, await gw.present(name, opts));
+      // admits
+      for (const n of ["alice_wiki", "alice_file_share", "carol_admin_panel", "carol_wiki", "bob_wiki"]) await run(n);
+      // denials: rate limit, replay, forged issuer, stale now, wrong service, malformed, unknown nonce/resource
+      const again = await gw.present("alice_file_share"); // same nullifier, same epoch
+      rec("dup_file_share", again);
+      rec("replay", await gw.access(again.body));
+      await run("forged_issuer_alice_wiki");
+      await run("stale_now_alice_wiki");
+      await run("same_epoch_a");
+      await run("same_epoch_b");
+      await run("wrong_service_alice_wiki_as_admin");
+      rec("malformed", await gw.access({ resource: "wiki", nonce: "01", proof: {}, publicSignals: ["01"] }));
+      rec("unknown_nonce", await gw.access({ ...again.body, nonce: "987654321" }));
+      rec("unknown_resource", await gw.access({ ...again.body, resource: "payroll" }));
+      // revocation, then a revoked credential's proof
+      gw.registry.setRoot(idx.context.root_after_bob_revoked, "revoke");
+      await gw.settle();
+      await run("stale_root_bob_wiki");
+
+      assert.deepEqual(
+        { ...st },
+        {
+          alice_wiki: "200 admitted", alice_file_share: "200 admitted", carol_admin_panel: "200 admitted",
+          carol_wiki: "200 admitted", bob_wiki: "200 admitted",
+          dup_file_share: "429 RATE_LIMITED", replay: "403 NONCE_USED", forged_issuer_alice_wiki: "403 ISSUER_NOT_PINNED",
+          stale_now_alice_wiki: "403 CHALLENGE_MISMATCH", same_epoch_a: "429 RATE_LIMITED", same_epoch_b: "429 RATE_LIMITED",
+          wrong_service_alice_wiki_as_admin: "403 POLICY_MISMATCH", malformed: "400 MALFORMED_REQUEST",
+          unknown_nonce: "403 NONCE_UNKNOWN", unknown_resource: "404 UNKNOWN_RESOURCE", stale_root_bob_wiki: "403 ROOT_NOT_CURRENT",
+        },
+        "the run must mix admissions and every denial path",
+      );
+
+      // ---- what must never appear ----
+      const personas = vec.credentials.map((c) => c.persona);
+      assert.deepEqual([...personas].sort(), ["alice", "bob", "carol"]);
+      const labels = new Set();
+      for (const c of vec.credentials) for (const v of Object.values(c.labels)) labels.add(String(v).toLowerCase());
+      for (const k of Object.keys(zk.ROLES)) labels.add(k);
+      for (const k of Object.keys(zk.DEPTS)) labels.add(k);
+      const secretVals = [];
+      for (const c of vec.credentials) {
+        secretVals.push(c.credentialSecret, c.credentialSalt, c.commitment, c.attrHash, c.signature.R8x, c.signature.R8y, c.signature.S);
+        for (const e of c.merkle.pathElements) if (e !== "0") secretVals.push(e);
+      }
+      // identity keys (username, email, role, department, clearance and their usual spellings)
+      const IDENTITY_KEY = /^(user(name)?|user_?id|email|e-?mail|name_?id|subject|sub|persona|employee(_?id)?|role|roles|dept|department|clearance|attributes?|device_?compliant|employee_?active|expiry|credential_?secret|credential_?salt|commitment|attr_?hash|signature|path_?elements|path_?indices|leaf)$/i;
+      const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/;
+      const word = (w) => new RegExp(`(^|[^A-Za-z0-9])${w.replace(/[^A-Za-z0-9]/g, "\\$&")}([^A-Za-z0-9]|$)`, "i");
+      // resource and route names that share a word with a label ("admin" in admin-panel, "finance" none)
+      const RESOURCE_WORDS = new Set(["admin"]);
+      // labels too short to scan as free text ("it", "bob" is a persona) are checked as whole values
+      // The service policies' own summaries ("Engineer or admin, clearance >= 2") are the SERVICE's
+      // configuration, identical for every user (contract obligation 8: "the policy fields are the
+      // service's, not the user's"). Taken from the gateway itself and cut out before the label scan.
+      const summaries = [];
+      for (const r of Object.keys(idx.context.resources)) {
+        const res = await gw.gw.request(gw.app).post("/api/zk/challenges").set("content-type", "application/json").send({ resource: r.replace(/_/g, "-") });
+        assert.equal(res.status, 201, JSON.stringify(res.body));
+        summaries.push(res.body.policy.summary);
+      }
+      assert.equal(summaries.length, 3);
+      const unpolicy = (s) => summaries.reduce((acc, x) => acc.split(x).join(" "), s);
+
+      /** Walk every value reachable from `root`, yielding [path, key, value] for keys and leaves. */
+      function* walk(root, base) {
+        const seen = new Set();
+        const stack = [[root, base]];
+        while (stack.length) {
+          const [v, p] = stack.pop();
+          if (v === null || v === undefined) continue;
+          if (typeof v === "function") continue;
+          if (typeof v !== "object") { yield [p, null, v]; continue; }
+          if (seen.has(v)) continue;
+          seen.add(v);
+          if (Buffer.isBuffer(v) || ArrayBuffer.isView(v)) continue;
+          if (v instanceof Map) {
+            for (const [k, x] of v) { yield [p, String(k), undefined]; yield [`${p}[${String(k).slice(0, 24)}]`, null, k]; stack.push([x, `${p}[${String(k).slice(0, 24)}]`]); }
+            continue;
+          }
+          if (v instanceof Set) { for (const x of v) stack.push([x, `${p}{}`]); continue; }
+          for (const k of Object.keys(v)) { yield [p, k, undefined]; stack.push([v[k], `${p}.${k}`]); }
+        }
+      }
+      function check(where, items) {
+        let n = 0;
+        for (const [p, k, v] of items) {
+          n += 1;
+          if (k !== null) {
+            assert.ok(!IDENTITY_KEY.test(k), `${where}: identity key "${k}" at ${p}`);
+            continue;
+          }
+          const s = String(v);
+          assert.ok(!EMAIL.test(s), `${where}: email-shaped value at ${p}`);
+          for (const name of personas) assert.ok(!word(name).test(s), `${where}: persona name "${name}" at ${p}`);
+          for (const l of labels) {
+            assert.notEqual(s.toLowerCase(), l, `${where}: attribute label "${l}" as a value at ${p}`);
+            if (l.length >= 5 && !RESOURCE_WORDS.has(l)) assert.ok(!word(l).test(unpolicy(s)), `${where}: attribute label "${l}" at ${p}`);
+          }
+          for (const x of secretVals) assert.ok(!s.includes(x), `${where}: private credential value ${x.slice(0, 8)}... at ${p}`);
+        }
+        return n;
+      }
+
+      // ---- the log: raw pino output of the whole run ----
+      const lines = gw.sink.lines;
+      assert.ok(lines.length >= 25, `expected a busy log, got ${lines.length} lines`);
+      const parsed = lines.map((l) => JSON.parse(l));
+      assert.ok(parsed.some((o) => o.res && o.res.statusCode === 429) && parsed.some((o) => o.res && o.res.statusCode === 200));
+      const logItems = check("gateway log", walk(parsed, "log"));
+      assert.ok(logItems > 100);
+      // free-text scan of the raw lines as well (catches anything a structured walk would split)
+      check("gateway log text", lines.map((l, i) => [`line ${i}`, null, l]));
+
+      // ---- the state: everything the gateway holds in memory after the run ----
+      const ctx = gw.ctx;
+      const state = {
+        challenges: ctx.challenges,
+        nullifiers: ctx.nullifiers,
+        sessions: ctx.sessions,
+        events: ctx.bus.recent(10_000),
+        rootHistory: ctx.rootHistory,
+        registry: ctx.registry,
+        operator: ctx.operator,
+      };
+      assert.ok(ctx.challenges.size >= 12 && ctx.nullifiers.size >= 5 && ctx.sessions.size === 0 && state.events.length >= 30,
+        `state too small to be meaningful: ${ctx.challenges.size}/${ctx.nullifiers.size}/${ctx.sessions.size}/${state.events.length}`);
+      const stateItems = check("gateway state", walk(state, "state"));
+      assert.ok(stateItems > 200);
+      check("gateway state text", [["state", null, JSON.stringify(state.events)]]);
+
+      // the event history carries public signals only: every signal name is a contract name
+      const allowedSignals = new Set(gw.ctx.profile.signals);
+      for (const e of state.events) for (const s of e.publicSignals || []) assert.ok(allowedSignals.has(s.name), `event signal ${s.name}`);
+    } finally {
+      await gwh.shutdown();
+    }
+  });
 });

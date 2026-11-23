@@ -45,6 +45,8 @@ cd p3 && docker compose up --build   # UI http://localhost:8088 · Keycloak http
 
 Builds from the repository root. A one-shot `setup` container enrols the personas and pins the issuer key before the gateway starts.
 
+With the stack up, `scripts/sso-live-check.sh` runs a real Keycloak login inside Docker (Authorization Code + PKCE through the SSO front door, token exchange and JWT validation), then checks that alice is admitted to the Wiki, denied the Admin Panel by policy, and that a wrong password or no session gets nothing.
+
 ## Commands
 
 | Command                                                       | Does                                                                           |

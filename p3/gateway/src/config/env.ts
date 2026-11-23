@@ -50,9 +50,9 @@ const schema = z.object({
   TRUSTED_ISSUER_AY: z.string().optional(),
   TRUSTED_ISSUER_FILE: z.string().optional(),
   /**
-   * Accept circuit keys whose manifest status is DEV-ONLY / DEMO-ONLY (single-party phase 2) for
-   * authorization. Required for the classroom demo until the multi-party ceremony lands; refused in
-   * production. Surfaced in /api/status and the UI.
+   * Accept circuit keys whose manifest status is DEV-ONLY or DEMO-ONLY (single-party phase 2, or the
+   * simulated multi-party ceremony of 2026-11-23) for authorization. Required for the classroom demo;
+   * refused in production. Surfaced in /api/status and the UI.
    */
   ALLOW_DEMO_KEYS: bool.default('false'),
   /** Per-IP request budget for /api/zk/* per minute. */

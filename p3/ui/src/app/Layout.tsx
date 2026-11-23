@@ -161,7 +161,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 )}
                 {status.zkAuthorization === 'ready'
                   ? status.artifacts.trust === 'demo-accepted'
-                    ? 'Real ZK authorization active · DEMO keys (single-party setup)'
+                    ? 'Real ZK authorization active · DEMO-ONLY keys (not for production)'
                     : 'Real ZK authorization active'
                   : status.mode === 'diagnostic-p1'
                     ? 'Diagnostic P1 mode · ZK authorization blocked'

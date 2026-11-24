@@ -13,6 +13,24 @@ import { Gauge } from 'lucide-react';
 import { api, type BenchMetric } from '../services/api';
 import { Badge, Card, Empty, PageHeader, Stat } from '../components/ui';
 
+// Short axis labels for the latency chart; the full label stays in the tooltip and the table.
+const SHORT: Record<string, string> = {
+  prove: 'Prove (v3)',
+  verify: 'Verify (v3)',
+  'gateway-e2e': 'Gateway e2e (v3)',
+  'gateway-pipeline': 'Gateway pipeline',
+  'gateway-reject-invalid': 'Reject: invalid proof',
+  'gateway-reject-replay': 'Reject: replay',
+  'sso-request': 'SSO request',
+  'zk-vs-sso': 'ZK overhead vs SSO',
+  'v4-prove': 'Prove (v4)',
+  'v4-verify': 'Verify (v4)',
+  'v4-e2e': 'End to end (v4)',
+  'zk-session-request': 'ZK session request',
+};
+const shortLabel = (m: BenchMetric) =>
+  SHORT[m.id] ?? (m.label.length > 24 ? `${m.label.slice(0, 23)}…` : m.label);
+
 const fmt = (m?: BenchMetric) =>
   m && m.status === 'measured' && m.median !== undefined ? m.median : null;
 
@@ -49,7 +67,8 @@ export function PerformancePage() {
     (m) => m.status === 'measured' && m.unit === 'ms' && m.median !== undefined,
   );
   const chart = latency.map((m) => ({
-    name: m.label,
+    name: shortLabel(m),
+    full: m.label,
     median: Number(m.median!.toFixed(2)),
     p95: Number(m.p95!.toFixed(2)),
   }));
@@ -97,9 +116,9 @@ export function PerformancePage() {
           title="Latency: median vs p95"
           subtitle={`${by('verify')?.samples ?? 0} samples per measurement`}
         >
-          <div className="h-80">
+          <div style={{ height: Math.max(320, chart.length * 34 + 60) }}>
             <ResponsiveContainer>
-              <BarChart data={chart} layout="vertical" margin={{ left: 40, right: 16 }}>
+              <BarChart data={chart} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid stroke="#1a2540" horizontal={false} />
                 <XAxis
                   type="number"
@@ -110,7 +129,14 @@ export function PerformancePage() {
                   domain={['auto', 'auto']}
                   allowDataOverflow
                 />
-                <YAxis type="category" dataKey="name" stroke="#6b7a99" fontSize={11} width={170} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  stroke="#6b7a99"
+                  fontSize={11}
+                  width={150}
+                  interval={0}
+                />
                 <Tooltip
                   contentStyle={{
                     background: '#0d1424',
@@ -118,6 +144,7 @@ export function PerformancePage() {
                     borderRadius: 8,
                     fontSize: 12,
                   }}
+                  labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ''}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="median" fill="#22d3ee" radius={[0, 4, 4, 0]} />
